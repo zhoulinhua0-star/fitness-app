@@ -36,7 +36,7 @@ Say goodbye to tedious modal pop-ups. FitnessPlan features WYSIWYG (What You See
 
 1. Clone this repository to your local machine:
    ```bash
-   git clone [https://github.com/zhoulinhua0-star/fitness-app.git](https://github.com/zhoulinhua0-star/fitness-app.git)
+   git clone https://github.com/zhoulinhua0-star/fitness-app.git
    ```
           
 2. Open the .xcodeproj file using Xcode 15 or later.
