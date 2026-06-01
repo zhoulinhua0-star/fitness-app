@@ -21,7 +21,6 @@ Say goodbye to tedious modal pop-ups. FitnessPlan features WYSIWYG (What You See
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/034d4c3a-c752-475e-9251-66e40a91d729" width="250" />
-  <img src="https://github.com/user-attachments/assets/5de5a7ed-edbf-4df5-a841-a1475ea84f3e" width="250" />
   <img src="https://github.com/user-attachments/assets/faef0913-24de-44ac-ab78-4d7c2e3e8acc" width="250" />
   <img src="https://github.com/user-attachments/assets/310ef9a2-69e1-47ee-a4cd-0526a50ffc2a" width="250" />
 </p>
