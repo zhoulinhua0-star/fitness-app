@@ -6,14 +6,36 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8A7A0F372FCD4D33006119B9 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 8A7A0F362FCD4D29006119B9 /* README.md */; };
+		8ADC4BD32FC8310800BA2F9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8ADC4BD22FC8310800BA2F9B /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		8A7A0F362FCD4D29006119B9 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = README.md; sourceTree = "<group>"; };
 		8ABC12442FC7430600A229AD /* FitnessApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8ADC4BD22FC8310800BA2F9B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		8ABC12462FC7430600A229AD /* FitnessApp */ = {
+		8ABC12462FC7430600A229AD /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FitnessApp;
+			path = App;
+			sourceTree = "<group>";
+		};
+		8ABC12552FC743A300A229AD /* Models */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Models;
+			sourceTree = "<group>";
+		};
+		8ABC12562FC743AE00A229AD /* Views */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Views;
+			sourceTree = "<group>";
+		};
+		8AD4606A2FC75F740070D93D /* Managers */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Managers;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +54,12 @@
 		8ABC123B2FC7430600A229AD = {
 			isa = PBXGroup;
 			children = (
-				8ABC12462FC7430600A229AD /* FitnessApp */,
+				8A7A0F362FCD4D29006119B9 /* README.md */,
+				8ADC4BD22FC8310800BA2F9B /* Assets.xcassets */,
+				8AD4606A2FC75F740070D93D /* Managers */,
+				8ABC12562FC743AE00A229AD /* Views */,
+				8ABC12552FC743A300A229AD /* Models */,
+				8ABC12462FC7430600A229AD /* App */,
 				8ABC12452FC7430600A229AD /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,7 +88,10 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				8ABC12462FC7430600A229AD /* FitnessApp */,
+				8ABC12462FC7430600A229AD /* App */,
+				8ABC12552FC743A300A229AD /* Models */,
+				8ABC12562FC743AE00A229AD /* Views */,
+				8AD4606A2FC75F740070D93D /* Managers */,
 			);
 			name = FitnessApp;
 			packageProductDependencies = (
@@ -109,6 +139,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8ADC4BD32FC8310800BA2F9B /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +150,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A7A0F372FCD4D33006119B9 /* README.md in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,10 +281,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VN3RC8953L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "我们需要访问您的日历来帮您同步每天的健身课表";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -263,7 +298,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -280,10 +315,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VN3RC8953L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "我们需要访问您的日历来帮您同步每天的健身课表";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -294,7 +332,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
