@@ -20,9 +20,10 @@ Say goodbye to tedious modal pop-ups. FitnessPlan features WYSIWYG (What You See
 ## 📸 Screenshots
 
 <p align="center">
-  <img src="URL_TO_YOUR_SCREENSHOT_1" width="250" />
-  <img src="URL_TO_YOUR_SCREENSHOT_2" width="250" />
-  <img src="URL_TO_YOUR_SCREENSHOT_3" width="250" />
+  <img src="https://github.com/user-attachments/assets/034d4c3a-c752-475e-9251-66e40a91d729" width="250" />
+  <img src="https://github.com/user-attachments/assets/5de5a7ed-edbf-4df5-a841-a1475ea84f3e" width="250" />
+  <img src="https://github.com/user-attachments/assets/faef0913-24de-44ac-ab78-4d7c2e3e8acc" width="250" />
+  <img src="https://github.com/user-attachments/assets/310ef9a2-69e1-47ee-a4cd-0526a50ffc2a" width="250" />
 </p>
 
 ## 🛠️ Tech Stack
@@ -37,7 +38,7 @@ Say goodbye to tedious modal pop-ups. FitnessPlan features WYSIWYG (What You See
 1. Clone this repository to your local machine:
    ```bash
    git clone [https://github.com/zhoulinhua0-star/fitness-app.git](https://github.com/zhoulinhua0-star/fitness-app.git)
-  ```
+   ```
           
 2. Open the .xcodeproj file using Xcode 15 or later.
               
