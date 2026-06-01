@@ -1,10 +1,3 @@
-//
-//  README.md
-//  FitnessApp
-//
-//  Created by 周琳桦 on 2026/6/1.
-//
-
 # 🏋️ FitnessApp
 
 ![iOS](https://img.shields.io/badge/iOS-17.0%2B-blue.svg)
