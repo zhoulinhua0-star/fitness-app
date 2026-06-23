@@ -2,43 +2,51 @@
 //  TodayWorkoutView.swift
 //  FitnessApp
 //
-//  Created by 周琳桦 on 2026/5/28.
-//
 
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 struct TodayWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutDays: [WorkoutDay]
+    @State private var expandedExerciseID: PersistentIdentifier?
+    @State private var didCelebrateFullWorkout = false
+    @State private var showCompletionSummary = false
+    @State private var todaySession: WorkoutSession?
     
-    // 💡 废弃了内存级 @State 变量，现在直接读取数据库的日期！
-    
-    // 智能获取今天的课表
-    var todayPlan: WorkoutDay? {
+    private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "EEEE"
-        let todayString = formatter.string(from: Date()).replacingOccurrences(of: "星期", with: "周")
+        return formatter
+    }()
+    
+    var todayPlan: WorkoutDay? {
+        let todayString = Self.weekdayFormatter
+            .string(from: Date())
+            .replacingOccurrences(of: "星期", with: "周")
         return workoutDays.first(where: { $0.dayName == todayString })
     }
     
-    // 动态计算已完成数量（只要最后打卡日期是“今天”，就算完成）
-    var completedCount: Int {
+    var completedExerciseCount: Int {
         guard let plan = todayPlan else { return 0 }
-        return plan.exercises.filter { isCompletedToday($0) }.count
+        return plan.exercises.filter { $0.isFullyCompletedToday }.count
     }
     
-    // 计算当前进度比例 (0.0 到 1.0)
+    var completedSetCount: Int {
+        guard let plan = todayPlan else { return 0 }
+        return plan.exercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+    }
+    
+    var totalSetCount: Int {
+        guard let plan = todayPlan else { return 0 }
+        return plan.exercises.reduce(0) { $0 + $1.sets }
+    }
+    
     var progress: Double {
-        guard let plan = todayPlan, !plan.exercises.isEmpty else { return 0 }
-        return Double(completedCount) / Double(plan.exercises.count)
-    }
-    
-    // 💡 核心逻辑：判断某个动作是不是“今天”完成的
-    private func isCompletedToday(_ exercise: Exercise) -> Bool {
-        guard let date = exercise.lastCompletedDate else { return false }
-        return Calendar.current.isDateInToday(date)
+        guard totalSetCount > 0 else { return 0 }
+        return Double(completedSetCount) / Double(totalSetCount)
     }
     
     var body: some View {
@@ -57,13 +65,45 @@ struct TodayWorkoutView: View {
                 } else {
                     Text("未找到计划").foregroundColor(.secondary)
                 }
+                
+                if showCompletionSummary, let session = todaySession, let plan = todayPlan {
+                    WorkoutCompletionSummaryView(
+                        completedSets: completedSetCount,
+                        totalSets: totalSetCount,
+                        completedExercises: completedExerciseCount,
+                        totalExercises: plan.exercises.count,
+                        duration: Date().timeIntervalSince(session.startedAt),
+                        onDismiss: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                showCompletionSummary = false
+                            }
+                        }
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .zIndex(1)
+                }
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showCompletionSummary)
             .navigationTitle("今日打卡")
+            .onAppear {
+                refreshTodaySessions()
+            }
         }
+    }
+    
+    private func refreshTodaySessions() {
+        guard let plan = todayPlan else { return }
+        for exercise in plan.exercises {
+            exercise.prepareForTodayIfNeeded()
+        }
+        if !plan.isRestDay && !plan.exercises.isEmpty {
+            todaySession = WorkoutHistoryManager.getOrCreateTodaySession(context: modelContext, plan: plan)
+            WorkoutHistoryManager.syncSessionMetadata(session: todaySession!, plan: plan)
+        }
+        syncWidgetAndSave(plan: plan)
     }
 }
 
-// MARK: - 核心子视图拆解
 extension TodayWorkoutView {
     
     private func workoutListView(plan: WorkoutDay) -> some View {
@@ -73,13 +113,38 @@ extension TodayWorkoutView {
             
             List {
                 ForEach(plan.exercises.sorted(by: { $0.order < $1.order })) { exercise in
-                    exerciseRow(exercise)
+                    if let session = todaySession {
+                        ExpandableExerciseRow(
+                            exercise: exercise,
+                            session: session,
+                            isExpanded: expandedExerciseID == exercise.persistentModelID,
+                            onToggleExpand: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                    if expandedExerciseID == exercise.persistentModelID {
+                                        expandedExerciseID = nil
+                                    } else {
+                                        expandedExerciseID = exercise.persistentModelID
+                                    }
+                                }
+                            },
+                            onSetProgressChanged: {
+                                handleSetProgressChanged(plan: plan)
+                            }
+                        )
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            if !exercise.isFullyCompletedToday {
+                                Button {
+                                    completeNextSetViaSwipe(exercise: exercise, plan: plan)
+                                } label: {
+                                    Label("完成一组", systemImage: "checkmark")
+                                }
+                                .tint(.accentColor)
+                            }
+                        }
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
-                }
-                .onMove { source, destination in
-                    moveExerciseInToday(plan: plan, from: source, to: destination)
+                    }
                 }
             }
             .listStyle(.plain)
@@ -88,26 +153,33 @@ extension TodayWorkoutView {
         }
     }
     
-    private func moveExerciseInToday(plan: WorkoutDay, from source: IndexSet, to destination: Int) {
-        var sortedList = plan.exercises.sorted(by: { $0.order < $1.order })
-        sortedList.move(fromOffsets: source, toOffset: destination)
+    private func completeNextSetViaSwipe(exercise: Exercise, plan: WorkoutDay) {
+        guard let session = todaySession else { return }
+        let nextSetIndex = exercise.effectiveCompletedSetCount + 1
+        guard exercise.completeNextSet() else { return }
         
-        for index in 0..<sortedList.count {
-            sortedList[index].order = index
-        }
-        
-        try? modelContext.save()
+        WorkoutHistoryManager.logSet(
+            context: modelContext,
+            session: session,
+            exercise: exercise,
+            setIndex: nextSetIndex,
+            weight: nil
+        )
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        handleSetProgressChanged(plan: plan)
     }
     
-    // 顶部进度看板
     private func progressHeader(plan: WorkoutDay) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 8) {
                 Text("训练进度")
                     .font(.headline)
-                Text("\(completedCount) / \(plan.exercises.count) 个动作")
+                Text("\(completedSetCount) / \(totalSetCount) 组")
                     .font(.title2.bold())
                     .foregroundColor(.accentColor)
+                Text("\(completedExerciseCount) / \(plan.exercises.count) 个动作已完成")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             Spacer()
             
@@ -119,59 +191,48 @@ extension TodayWorkoutView {
         .padding(.horizontal)
     }
     
-    // 单个动作打卡行
-    private func exerciseRow(_ exercise: Exercise) -> some View {
-        let isCompleted = isCompletedToday(exercise)
-        
-        return Button(action: { toggleExercise(exercise) }) {
-            HStack {
-                Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundColor(isCompleted ? .accentColor : .gray)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(exercise.name)
-                        .font(.headline)
-                        .strikethrough(isCompleted, color: .secondary)
-                        .foregroundColor(isCompleted ? .secondary : .primary)
-                    
-                    Text("\(exercise.sets) 组 × \(exercise.reps) 次")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
+    private func handleSetProgressChanged(plan: WorkoutDay) {
+        withAnimation {
+            for exercise in plan.exercises {
+                exercise.prepareForTodayIfNeeded()
             }
-            .padding()
-            .background(Color(.secondarySystemGroupedBackground))
-            .cornerRadius(12)
         }
-        .buttonStyle(PlainButtonStyle())
+        
+        if todaySession == nil {
+            todaySession = WorkoutHistoryManager.getOrCreateTodaySession(context: modelContext, plan: plan)
+        }
+        if let session = todaySession {
+            WorkoutHistoryManager.syncSessionMetadata(session: session, plan: plan)
+        }
+        
+        let allExercisesDone = completedExerciseCount == plan.exercises.count && !plan.exercises.isEmpty
+        if allExercisesDone && !didCelebrateFullWorkout {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            didCelebrateFullWorkout = true
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                showCompletionSummary = true
+            }
+        } else if !allExercisesDone {
+            didCelebrateFullWorkout = false
+        }
+        
+        syncWidgetAndSave(plan: plan)
     }
     
-    // 💡 打卡状态切换逻辑升级：直接写入数据库！
-    private func toggleExercise(_ exercise: Exercise) {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-        
-        withAnimation {
-            if isCompletedToday(exercise) {
-                // 如果今天已经打卡了，取消打卡（抹去记录）
-                exercise.lastCompletedDate = nil
-            } else {
-                // 如果没打卡，记录为此时此刻
-                exercise.lastCompletedDate = Date()
-                
-                // 检查是否全做完了
-                if completedCount == todayPlan?.exercises.count {
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-            }
+    private func syncWidgetAndSave(plan: WorkoutDay?) {
+        if let plan, !plan.isRestDay {
+            WidgetDataStore.updateTodayProgress(
+                completedSets: completedSetCount,
+                totalSets: totalSetCount,
+                completedExercises: completedExerciseCount,
+                totalExercises: plan.exercises.count,
+                dayName: plan.dayName
+            )
+            WidgetCenter.shared.reloadAllTimelines()
         }
-        // 直接落地保存，就算此时杀掉 App 数据也绝不会丢！
         try? modelContext.save()
     }
     
-    // 休息日视图
     private var restDayView: some View {
         VStack(spacing: 20) {
             Image(systemName: "battery.100")
@@ -185,7 +246,6 @@ extension TodayWorkoutView {
         }
     }
     
-    // 计划为空视图
     private var emptyPlanView: some View {
         VStack(spacing: 20) {
             Image(systemName: "clipboard")

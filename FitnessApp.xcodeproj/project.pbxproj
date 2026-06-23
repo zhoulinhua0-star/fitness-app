@@ -7,14 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		8A7A0F372FCD4D33006119B9 /* README.md in Sources */ = {isa = PBXBuildFile; fileRef = 8A7A0F362FCD4D29006119B9 /* README.md */; };
 		8ADC4BD32FC8310800BA2F9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8ADC4BD22FC8310800BA2F9B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		8A7A0F362FCD4D29006119B9 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = README.md; sourceTree = "<group>"; };
 		8ABC12442FC7430600A229AD /* FitnessApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FitnessApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8ADC4BD22FC8310800BA2F9B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8AWIDGET042FC7430600A229AD /* FitnessAppWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FitnessAppWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -38,10 +37,27 @@
 			path = Managers;
 			sourceTree = "<group>";
 		};
+		8ASHARED012FC7430600A229AD /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		8AWIDGET0B2FC7430600A229AD /* FitnessAppWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FitnessAppWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		8ABC12412FC7430600A229AD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8AWIDGET092FC7430600A229AD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -54,8 +70,9 @@
 		8ABC123B2FC7430600A229AD = {
 			isa = PBXGroup;
 			children = (
-				8A7A0F362FCD4D29006119B9 /* README.md */,
 				8ADC4BD22FC8310800BA2F9B /* Assets.xcassets */,
+				8ASHARED012FC7430600A229AD /* Shared */,
+				8AWIDGET0B2FC7430600A229AD /* FitnessAppWidget */,
 				8AD4606A2FC75F740070D93D /* Managers */,
 				8ABC12562FC743AE00A229AD /* Views */,
 				8ABC12552FC743A300A229AD /* Models */,
@@ -68,6 +85,7 @@
 			isa = PBXGroup;
 			children = (
 				8ABC12442FC7430600A229AD /* FitnessApp.app */,
+				8AWIDGET042FC7430600A229AD /* FitnessAppWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -92,6 +110,7 @@
 				8ABC12552FC743A300A229AD /* Models */,
 				8ABC12562FC743AE00A229AD /* Views */,
 				8AD4606A2FC75F740070D93D /* Managers */,
+				8ASHARED012FC7430600A229AD /* Shared */,
 			);
 			name = FitnessApp;
 			packageProductDependencies = (
@@ -99,6 +118,29 @@
 			productName = FitnessApp;
 			productReference = 8ABC12442FC7430600A229AD /* FitnessApp.app */;
 			productType = "com.apple.product-type.application";
+		};
+		8AWIDGET032FC7430600A229AD /* FitnessAppWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8AWIDGET052FC7430800A229AD /* Build configuration list for PBXNativeTarget "FitnessAppWidgetExtension" */;
+			buildPhases = (
+				8AWIDGET082FC7430600A229AD /* Sources */,
+				8AWIDGET092FC7430600A229AD /* Frameworks */,
+				8AWIDGET0A2FC7430600A229AD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8ASHARED012FC7430600A229AD /* Shared */,
+				8AWIDGET0B2FC7430600A229AD /* FitnessAppWidget */,
+			);
+			name = FitnessAppWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = FitnessAppWidgetExtension;
+			productReference = 8AWIDGET042FC7430600A229AD /* FitnessAppWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -130,6 +172,7 @@
 			projectRoot = "";
 			targets = (
 				8ABC12432FC7430600A229AD /* FitnessApp */,
+				8AWIDGET032FC7430600A229AD /* FitnessAppWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -143,6 +186,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		8AWIDGET0A2FC7430600A229AD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -150,7 +200,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8A7A0F372FCD4D33006119B9 /* README.md in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8AWIDGET082FC7430600A229AD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -209,7 +265,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -266,7 +322,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -288,6 +344,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "我们需要访问您的日历来帮您同步每天的健身课表";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "我们需要发送每日训练提醒，帮助你按时完成训练";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -298,7 +355,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026New";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -322,6 +379,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "我们需要访问您的日历来帮您同步每天的健身课表";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "我们需要发送每日训练提醒，帮助你按时完成训练";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -332,13 +390,61 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026New";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8AWIDGET062FC7430800A229AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VN3RC8953L;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FitnessAppWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8AWIDGET072FC7430800A229AD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VN3RC8953L;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = FitnessAppWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -361,6 +467,15 @@
 			buildConfigurations = (
 				8ABC12502FC7430800A229AD /* Debug */,
 				8ABC12512FC7430800A229AD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8AWIDGET052FC7430800A229AD /* Build configuration list for PBXNativeTarget "FitnessAppWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8AWIDGET062FC7430800A229AD /* Debug */,
+				8AWIDGET072FC7430800A229AD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

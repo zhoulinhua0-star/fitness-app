@@ -2,56 +2,64 @@
 //  AnalyticsView.swift
 //  FitnessApp
 //
-//  Created by 周琳桦 on 2026/5/28.
-//
 
 import SwiftUI
-import Charts // 导入苹果官方现代图表框架
+import Charts
 import SwiftData
 
 struct AnalyticsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query private var workoutDays: [WorkoutDay]
+    @Query(sort: \WorkoutSession.sessionDate, order: .reverse) private var sessions: [WorkoutSession]
+    
+    private struct WeeklyChartEntry: Identifiable {
+        let id: String
+        let dayName: String
+        let kind: String
+        let value: Int
+    }
+    
+    private var streak: Int {
+        WorkoutHistoryManager.currentStreak(context: modelContext)
+    }
+    
+    private var weeklyStats: [(dayName: String, plannedSets: Int, completedSets: Int)] {
+        WorkoutHistoryManager.weeklyDayStats(context: modelContext, workoutDays: workoutDays)
+    }
+    
+    private var todayPlan: WorkoutDay? {
+        let dayName = WorkoutHistoryManager.todayWeekdayString()
+        return workoutDays.first { $0.dayName == dayName }
+    }
+    
+    private var todayCompletedSets: Int {
+        guard let plan = todayPlan else { return 0 }
+        return WorkoutHistoryManager.completedSetCount(for: plan)
+    }
+    
+    private var todayPlannedSets: Int {
+        guard let plan = todayPlan else { return 0 }
+        return WorkoutHistoryManager.plannedSetCount(for: plan)
+    }
+    
+    private var weeklyChartEntries: [WeeklyChartEntry] {
+        weeklyStats.flatMap { stat in
+            [
+                WeeklyChartEntry(id: "\(stat.dayName)-plan", dayName: stat.dayName, kind: "计划", value: stat.plannedSets),
+                WeeklyChartEntry(id: "\(stat.dayName)-actual", dayName: stat.dayName, kind: "实际", value: stat.completedSets)
+            ]
+        }
+    }
     
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
-                    
-                    // 1. 顶部总览卡片
                     overviewHeader
-                    
-                    // 2. 核心图表：周训练量分布
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("📊 本周计划动作分布")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        // 苹果原生高级图表
-                        Chart {
-                            ForEach(workoutDays) { day in
-                                // 柱状图：X轴为星期，Y轴为该天安排的动作数量
-                                BarMark(
-                                    x: .value("星期", day.dayName),
-                                    y: .value("动作数量", day.isRestDay ? 0 : day.exercises.count)
-                                )
-                                // 给柱状图赋予标志性的渐变主题色
-                                .foregroundStyle(Color.accentColor.gradient)
-                                .cornerRadius(6) // 柱体圆角
-                            }
-                        }
-                        .frame(height: 200)
-                        // 自定义图表刻度
-                        .chartYAxis {
-                            AxisMarks(position: .leading)
-                        }
-                    }
-                    .padding(20)
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(24)
-                    .shadow(color: Color.black.opacity(0.03), radius: 10, y: 5)
-                    .padding(.horizontal, 20)
-                    
-                    // 3. 激励名言 Bento 盒子
+                    todayLiveCard
+                    weeklyCompletionChart
+                    volumeTrendChart
+                    historySection
                     motivationalBox
                 }
                 .padding(.top, 16)
@@ -62,36 +70,29 @@ struct AnalyticsView: View {
     }
 }
 
-// MARK: - 辅助子视图
 extension AnalyticsView {
     
-    // 总览数据看板
     private var overviewHeader: some View {
         HStack(spacing: 16) {
-            let totalWorkouts = workoutDays.filter { !$0.isRestDay && !$0.exercises.isEmpty }.count
-            let totalExercises = workoutDays.reduce(0) { $0 + $1.exercises.count }
-            
-            // 小格子 1：本周练几天
             VStack(alignment: .leading, spacing: 8) {
-                Text("训练频次")
+                Text("连续打卡")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("\(totalWorkouts) 天/周")
+                Text("\(streak) 天")
                     .font(.title2.bold())
+                    .foregroundColor(.accentColor)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color(.secondarySystemGroupedBackground))
             .cornerRadius(16)
             
-            // 小格子 2：总共多少动作
             VStack(alignment: .leading, spacing: 8) {
-                Text("总动作数")
+                Text("历史训练")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("\(totalExercises) 个")
+                Text("\(sessions.count) 次")
                     .font(.title2.bold())
-                    .foregroundColor(.accentColor)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
@@ -101,7 +102,154 @@ extension AnalyticsView {
         .padding(.horizontal, 20)
     }
     
-    // 激励卡片
+    private var todayLiveCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("今日实时进度")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            if let plan = todayPlan, !plan.isRestDay, !plan.exercises.isEmpty {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(todayCompletedSets) / \(todayPlannedSets) 组")
+                            .font(.title.bold())
+                            .foregroundColor(.accentColor)
+                        Text(plan.dayName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    RingProgressView(
+                        progress: todayPlannedSets > 0
+                            ? Double(todayCompletedSets) / Double(todayPlannedSets)
+                            : 0,
+                        size: 56
+                    )
+                }
+            } else {
+                Text("今日休息或无训练安排")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(20)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(24)
+        .padding(.horizontal, 20)
+    }
+    
+    private var weeklyCompletionChart: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("本周计划 vs 实际完成（组数）")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            Chart(weeklyChartEntries) { entry in
+                BarMark(
+                    x: .value("星期", entry.dayName),
+                    y: .value("组数", entry.value)
+                )
+                .foregroundStyle(by: .value("类型", entry.kind))
+                .cornerRadius(4)
+            }
+            .chartForegroundStyleScale([
+                "计划": Color.secondary.opacity(0.35),
+                "实际": Color.accentColor
+            ])
+            .frame(height: 220)
+            .chartYAxis {
+                AxisMarks(position: .leading)
+            }
+        }
+        .padding(20)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(24)
+        .padding(.horizontal, 20)
+    }
+    
+    private var volumeTrendChart: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("近期完成组数趋势")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            let recent = Array(sessions.prefix(7).reversed())
+            
+            if recent.isEmpty {
+                Text("完成第一次训练后，这里会显示趋势图")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
+            } else {
+                Chart(recent, id: \.persistentModelID) { session in
+                    LineMark(
+                        x: .value("日期", session.sessionDate, unit: .day),
+                        y: .value("组数", session.completedSetCount)
+                    )
+                    .foregroundStyle(Color.accentColor)
+                    .interpolationMethod(.catmullRom)
+                    
+                    PointMark(
+                        x: .value("日期", session.sessionDate, unit: .day),
+                        y: .value("组数", session.completedSetCount)
+                    )
+                    .foregroundStyle(Color.accentColor)
+                }
+                .frame(height: 180)
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+            }
+        }
+        .padding(20)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(24)
+        .padding(.horizontal, 20)
+    }
+    
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("训练历史")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            if sessions.isEmpty {
+                Text("暂无历史记录，完成今日训练后将自动保存")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(sessions.prefix(10)) { session in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(session.dayName)
+                                .font(.subheadline.bold())
+                            Text(session.sessionDate, format: .dateTime.month().day().weekday(.abbreviated))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 4) {
+                            Text("\(session.completedSetCount)/\(session.plannedSetCount) 组")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(.accentColor)
+                            Text(session.isComplete ? "已完成" : "部分完成")
+                                .font(.caption)
+                                .foregroundColor(session.isComplete ? .green : .orange)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    
+                    if session.persistentModelID != sessions.prefix(10).last?.persistentModelID {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(24)
+        .padding(.horizontal, 20)
+    }
+    
     private var motivationalBox: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -126,5 +274,5 @@ extension AnalyticsView {
 
 #Preview {
     AnalyticsView()
-        .modelContainer(for: WorkoutDay.self, inMemory: true)
+        .modelContainer(for: [WorkoutDay.self, WorkoutSession.self, SetLog.self], inMemory: true)
 }

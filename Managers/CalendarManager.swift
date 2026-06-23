@@ -14,6 +14,13 @@ class CalendarManager {
     static let shared = CalendarManager()
     private let eventStore = EKEventStore()
     
+    private static let weekdayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "EEEE"
+        return formatter
+    }()
+    
     // 请求权限并同步
     func requestAccessAndSync(workoutDays: [WorkoutDay]) async -> Bool {
         do {
@@ -61,7 +68,7 @@ class CalendarManager {
         let startOfToday = sysCalendar.startOfDay(for: now)
         
         // 🧹 2. 大扫除：先清理未来 30 天内该日历下的所有旧日程，防止重复和不更新
-        if let endOfClearPeriod = sysCalendar.date(byAdding: .day, value: 30, to: startOfToday) {
+        if let endOfClearPeriod = sysCalendar.date(byAdding: .day, value: 28, to: startOfToday) {
             let clearPredicate = eventStore.predicateForEvents(withStart: startOfToday, end: endOfClearPeriod, calendars: [calendar])
             let oldEvents = eventStore.events(matching: clearPredicate)
             for oldEvent in oldEvents {
@@ -72,15 +79,13 @@ class CalendarManager {
             try eventStore.commit()
         }
         
-        // 🗓️ 3. 铺新床：把未来 7 天的最新课表写入系统日历
-        for i in 0..<7 {
+        // 🗓️ 3. 铺新床：把未来 4 周的最新课表写入系统日历
+        for i in 0..<28 {
             guard let targetDate = sysCalendar.date(byAdding: .day, value: i, to: now) else { continue }
             
-            // 获取当天是周几
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "zh_CN")
-            formatter.dateFormat = "EEEE"
-            let weekdayStr = formatter.string(from: targetDate).replacingOccurrences(of: "星期", with: "周")
+            let weekdayStr = Self.weekdayFormatter
+                .string(from: targetDate)
+                .replacingOccurrences(of: "星期", with: "周")
             
             // 匹配我们的课表
             if let plan = workoutDays.first(where: { $0.dayName == weekdayStr }), !plan.isRestDay, !plan.exercises.isEmpty {
