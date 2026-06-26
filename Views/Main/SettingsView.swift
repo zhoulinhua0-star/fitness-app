@@ -54,19 +54,6 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section("小组件") {
-                    Text("在桌面添加「FitnessApp」小组件，可查看今日训练进度。")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    HStack {
-                        Text("当前进度")
-                        Spacer()
-                        Text("\(WidgetDataStore.completedSets)/\(WidgetDataStore.totalSets) 组")
-                            .foregroundColor(.accentColor)
-                    }
-                }
-                
                 Section("关于") {
                     HStack {
                         Text("版本")

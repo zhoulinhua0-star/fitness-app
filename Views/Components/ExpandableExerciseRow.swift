@@ -33,55 +33,72 @@ struct ExpandableExerciseRow: View {
         WorkoutHistoryManager.lastPerformanceSummary(context: modelContext, exerciseName: exercise.name)
     }
     
+    private static let expandSpring = Animation.spring(response: 0.42, dampingFraction: 0.86, blendDuration: 0.08)
+    
     var body: some View {
         VStack(spacing: 0) {
-            headerRow
+            Button(action: onToggleExpand) {
+                headerContent
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             
             if isExpanded {
                 setPanel
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity
+                                .combined(with: .move(edge: .top))
+                                .combined(with: .scale(scale: 0.97, anchor: .top)),
+                            removal: .opacity
+                                .combined(with: .scale(scale: 0.98, anchor: .top))
+                        )
+                    )
             }
         }
-        .padding()
         .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isExpanded)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .animation(Self.expandSpring, value: isExpanded)
+        .sensoryFeedback(.selection, trigger: isExpanded)
     }
     
-    private var headerRow: some View {
-        Button(action: onToggleExpand) {
-            HStack(spacing: 12) {
-                statusIcon
+    private var headerContent: some View {
+        HStack(spacing: 12) {
+            statusIcon
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(exercise.name)
+                    .font(.headline)
+                    .strikethrough(isFullyCompleted, color: .secondary)
+                    .foregroundColor(isFullyCompleted ? .secondary : .primary)
                 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(exercise.name)
-                        .font(.headline)
-                        .strikethrough(isFullyCompleted, color: .secondary)
-                        .foregroundColor(isFullyCompleted ? .secondary : .primary)
-                    
-                    Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
-                        .font(.subheadline)
+                Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                if let lastTimeSummary {
+                    Text(lastTimeSummary)
+                        .font(.caption)
                         .foregroundColor(.secondary)
-                    
-                    if let lastTimeSummary {
-                        Text(lastTimeSummary)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    ProgressView(value: exercise.setProgress)
-                        .tint(.accentColor)
                 }
                 
-                Spacer(minLength: 8)
-                
-                Image(systemName: "chevron.right")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                ProgressView(value: exercise.setProgress)
+                    .tint(.accentColor)
+                    .animation(nil, value: exercise.setProgress)
             }
+            
+            Spacer(minLength: 8)
+            
+            Image(systemName: "chevron.right")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.secondary)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .animation(Self.expandSpring, value: isExpanded)
         }
-        .buttonStyle(.plain)
     }
     
     @ViewBuilder
@@ -98,7 +115,6 @@ struct ExpandableExerciseRow: View {
     private var setPanel: some View {
         VStack(spacing: 8) {
             Divider()
-                .padding(.top, 12)
             
             ForEach(setRowIDs, id: \.self) { rowID in
                 setRow(setNumber: rowID.setNumber)
@@ -162,12 +178,6 @@ struct ExpandableExerciseRow: View {
             Text("\(exercise.reps) 次")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            
-            if state == .next {
-                Text("点击完成")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(.accentColor)
-            }
         }
     }
     
@@ -210,6 +220,8 @@ struct ExpandableExerciseRow: View {
     }
     
     private func handleSetTap(setNumber: Int, state: SetState) {
+        guard isExpanded else { return }
+        
         switch state {
         case .next:
             completeNextSet()
@@ -240,6 +252,8 @@ struct ExpandableExerciseRow: View {
     }
     
     private func completeNextSet() {
+        guard isExpanded else { return }
+        
         let wasFullyCompleted = isFullyCompleted
         let nextSetIndex = completedSets + 1
         guard exercise.completeNextSet() else { return }
@@ -258,6 +272,8 @@ struct ExpandableExerciseRow: View {
     }
     
     private func undoLastSet() {
+        guard isExpanded else { return }
+        
         guard exercise.undoLastSet() else { return }
         WorkoutHistoryManager.undoLastSetLog(
             context: modelContext,
@@ -270,6 +286,8 @@ struct ExpandableExerciseRow: View {
     }
     
     private func completeAllRemaining() {
+        guard isExpanded else { return }
+        
         let wasFullyCompleted = isFullyCompleted
         let startIndex = completedSets + 1
         exercise.completeAllRemainingSets()

@@ -29,6 +29,20 @@ struct PlanSetupView: View {
         }
     }
     
+    private var weekOverview: WeekPlanSummary.Overview {
+        let snapshots = sortedDays.map { day in
+            WeekPlanSummary.DaySnapshot(
+                dayName: day.dayName,
+                isRestDay: day.isRestDay,
+                totalSets: day.exercises.reduce(0) { $0 + $1.sets },
+                exerciseNames: day.exercises
+                    .sorted { $0.order < $1.order }
+                    .map(\.name)
+            )
+        }
+        return WeekPlanSummary.buildOverview(from: snapshots)
+    }
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -37,12 +51,16 @@ struct PlanSetupView: View {
                         ProgressView("正在初始化课表...")
                             .padding(.top, 40)
                     } else {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(sortedDays) { day in
-                                NavigationLink(destination: DayDetailEditorView(workoutDay: day)) {
-                                    LocalBentoDayCard(workoutDay: day)
+                        VStack(spacing: 16) {
+                            WeeklyPlanOverview(overview: weekOverview)
+                            
+                            LazyVGrid(columns: columns, spacing: 12) {
+                                ForEach(sortedDays) { day in
+                                    NavigationLink(destination: DayDetailEditorView(workoutDay: day)) {
+                                        LocalBentoDayCard(workoutDay: day)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
                                 }
-                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                         .padding()
@@ -54,7 +72,9 @@ struct PlanSetupView: View {
             .navigationTitle("健身课表")
             .background(Color(.systemGroupedBackground))
             .onAppear {
+                revertEnglishDayNamesIfNeeded()
                 initializeDefaultDataIfNeeded()
+                WidgetSyncManager.sync(workoutDays: sortedDays, context: modelContext)
             }
         }
     }
@@ -63,6 +83,10 @@ struct PlanSetupView: View {
 // MARK: - 🧱 带有热力进度条的内嵌便当盒
 struct LocalBentoDayCard: View {
     let workoutDay: WorkoutDay
+    
+    private var isToday: Bool {
+        workoutDay.dayName == WeekPlanSummary.todayDayName()
+    }
     
     // 自动计算今日总组数
     var totalSets: Int {
@@ -86,7 +110,7 @@ struct LocalBentoDayCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(workoutDay.dayName)
+                Text(WeekdayDisplay.label(for: workoutDay.dayName))
                     .font(.title3)
                     .bold()
                 Spacer()
@@ -173,6 +197,10 @@ struct LocalBentoDayCard: View {
         .frame(height: 155) // 稍微拉高一点以容纳进度条
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(isToday ? Color.accentColor.opacity(0.6) : Color.clear, lineWidth: 1.5)
+        )
         .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
     }
 }
@@ -239,6 +267,30 @@ extension PlanSetupView {
                     UINotificationFeedbackGenerator().notificationOccurred(.warning)
                 }
             }
+        }
+    }
+    
+    private static let englishToChineseNames: [String: String] = [
+        "Mon": "周一", "Tue": "周二", "Wed": "周三", "Thu": "周四",
+        "Fri": "周五", "Sat": "周六", "Sun": "周日"
+    ]
+    
+    private func revertEnglishDayNamesIfNeeded() {
+        var changed = false
+        for day in workoutDays {
+            if let chinese = Self.englishToChineseNames[day.dayName] {
+                day.dayName = chinese
+                changed = true
+            }
+        }
+        
+        if changed, let sessions = try? modelContext.fetch(FetchDescriptor<WorkoutSession>()) {
+            for session in sessions {
+                if let chinese = Self.englishToChineseNames[session.dayName] {
+                    session.dayName = chinese
+                }
+            }
+            try? modelContext.save()
         }
     }
     

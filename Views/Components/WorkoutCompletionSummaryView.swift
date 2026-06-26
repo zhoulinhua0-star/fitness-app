@@ -5,7 +5,6 @@ struct WorkoutCompletionSummaryView: View {
     let totalSets: Int
     let completedExercises: Int
     let totalExercises: Int
-    let duration: TimeInterval
     let onDismiss: () -> Void
     
     @State private var didDismiss = false
@@ -27,7 +26,6 @@ struct WorkoutCompletionSummaryView: View {
                 VStack(spacing: 12) {
                     summaryRow(title: "完成组数", value: "\(completedSets) / \(totalSets) 组")
                     summaryRow(title: "完成动作", value: "\(completedExercises) / \(totalExercises) 个")
-                    summaryRow(title: "训练时长", value: formattedDuration(duration))
                 }
                 .padding()
                 .background(Color(.tertiarySystemGroupedBackground))
@@ -66,15 +64,5 @@ struct WorkoutCompletionSummaryView: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
         }
-    }
-    
-    private func formattedDuration(_ interval: TimeInterval) -> String {
-        let total = Int(interval.rounded())
-        let minutes = total / 60
-        let seconds = total % 60
-        if minutes > 0 {
-            return "\(minutes) 分 \(seconds) 秒"
-        }
-        return "\(seconds) 秒"
     }
 }

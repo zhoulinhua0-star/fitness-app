@@ -5,7 +5,6 @@
 
 import SwiftUI
 import SwiftData
-import WidgetKit
 
 struct TodayWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
@@ -15,18 +14,9 @@ struct TodayWorkoutView: View {
     @State private var showCompletionSummary = false
     @State private var todaySession: WorkoutSession?
     
-    private static let weekdayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "EEEE"
-        return formatter
-    }()
-    
     var todayPlan: WorkoutDay? {
-        let todayString = Self.weekdayFormatter
-            .string(from: Date())
-            .replacingOccurrences(of: "星期", with: "周")
-        return workoutDays.first(where: { $0.dayName == todayString })
+        let todayString = WorkoutHistoryManager.todayWeekdayString()
+        return workoutDays.first { $0.dayName == todayString }
     }
     
     var completedExerciseCount: Int {
@@ -66,13 +56,12 @@ struct TodayWorkoutView: View {
                     Text("未找到计划").foregroundColor(.secondary)
                 }
                 
-                if showCompletionSummary, let session = todaySession, let plan = todayPlan {
+                if showCompletionSummary, let plan = todayPlan {
                     WorkoutCompletionSummaryView(
                         completedSets: completedSetCount,
                         totalSets: totalSetCount,
                         completedExercises: completedExerciseCount,
                         totalExercises: plan.exercises.count,
-                        duration: Date().timeIntervalSince(session.startedAt),
                         onDismiss: {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                                 showCompletionSummary = false
@@ -85,14 +74,17 @@ struct TodayWorkoutView: View {
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showCompletionSummary)
             .navigationTitle("今日打卡")
-            .onAppear {
+            .task(id: todayPlan?.persistentModelID) {
                 refreshTodaySessions()
             }
         }
     }
     
     private func refreshTodaySessions() {
-        guard let plan = todayPlan else { return }
+        guard let plan = todayPlan else {
+            WidgetSyncManager.sync(workoutDays: workoutDays, context: modelContext)
+            return
+        }
         for exercise in plan.exercises {
             exercise.prepareForTodayIfNeeded()
         }
@@ -100,7 +92,7 @@ struct TodayWorkoutView: View {
             todaySession = WorkoutHistoryManager.getOrCreateTodaySession(context: modelContext, plan: plan)
             WorkoutHistoryManager.syncSessionMetadata(session: todaySession!, plan: plan)
         }
-        syncWidgetAndSave(plan: plan)
+        syncWidgetAndSave()
     }
 }
 
@@ -111,62 +103,34 @@ extension TodayWorkoutView {
             progressHeader(plan: plan)
                 .padding(.top)
             
-            List {
-                ForEach(plan.exercises.sorted(by: { $0.order < $1.order })) { exercise in
+            ScrollView {
+                VStack(spacing: 12) {
                     if let session = todaySession {
-                        ExpandableExerciseRow(
-                            exercise: exercise,
-                            session: session,
-                            isExpanded: expandedExerciseID == exercise.persistentModelID,
-                            onToggleExpand: {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                    if expandedExerciseID == exercise.persistentModelID {
-                                        expandedExerciseID = nil
-                                    } else {
-                                        expandedExerciseID = exercise.persistentModelID
+                        ForEach(plan.exercises.sorted(by: { $0.order < $1.order })) { exercise in
+                            ExpandableExerciseRow(
+                                exercise: exercise,
+                                session: session,
+                                isExpanded: expandedExerciseID == exercise.persistentModelID,
+                                onToggleExpand: {
+                                    withAnimation(.spring(response: 0.42, dampingFraction: 0.86, blendDuration: 0.08)) {
+                                        if expandedExerciseID == exercise.persistentModelID {
+                                            expandedExerciseID = nil
+                                        } else {
+                                            expandedExerciseID = exercise.persistentModelID
+                                        }
                                     }
+                                },
+                                onSetProgressChanged: {
+                                    handleSetProgressChanged(plan: plan)
                                 }
-                            },
-                            onSetProgressChanged: {
-                                handleSetProgressChanged(plan: plan)
-                            }
-                        )
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            if !exercise.isFullyCompletedToday {
-                                Button {
-                                    completeNextSetViaSwipe(exercise: exercise, plan: plan)
-                                } label: {
-                                    Label("完成一组", systemImage: "checkmark")
-                                }
-                                .tint(.accentColor)
-                            }
+                            )
                         }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
                     }
                 }
+                .padding(.horizontal)
+                .padding(.bottom, 16)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .padding(.horizontal)
         }
-    }
-    
-    private func completeNextSetViaSwipe(exercise: Exercise, plan: WorkoutDay) {
-        guard let session = todaySession else { return }
-        let nextSetIndex = exercise.effectiveCompletedSetCount + 1
-        guard exercise.completeNextSet() else { return }
-        
-        WorkoutHistoryManager.logSet(
-            context: modelContext,
-            session: session,
-            exercise: exercise,
-            setIndex: nextSetIndex,
-            weight: nil
-        )
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        handleSetProgressChanged(plan: plan)
     }
     
     private func progressHeader(plan: WorkoutDay) -> some View {
@@ -192,10 +156,8 @@ extension TodayWorkoutView {
     }
     
     private func handleSetProgressChanged(plan: WorkoutDay) {
-        withAnimation {
-            for exercise in plan.exercises {
-                exercise.prepareForTodayIfNeeded()
-            }
+        for exercise in plan.exercises {
+            exercise.prepareForTodayIfNeeded()
         }
         
         if todaySession == nil {
@@ -216,20 +178,11 @@ extension TodayWorkoutView {
             didCelebrateFullWorkout = false
         }
         
-        syncWidgetAndSave(plan: plan)
+        syncWidgetAndSave()
     }
     
-    private func syncWidgetAndSave(plan: WorkoutDay?) {
-        if let plan, !plan.isRestDay {
-            WidgetDataStore.updateTodayProgress(
-                completedSets: completedSetCount,
-                totalSets: totalSetCount,
-                completedExercises: completedExerciseCount,
-                totalExercises: plan.exercises.count,
-                dayName: plan.dayName
-            )
-            WidgetCenter.shared.reloadAllTimelines()
-        }
+    private func syncWidgetAndSave() {
+        WidgetSyncManager.sync(workoutDays: workoutDays, context: modelContext)
         try? modelContext.save()
     }
     
