@@ -2,6 +2,10 @@
 //  TodayWorkoutView.swift
 //  FitnessApp
 //
+//  Redesigned in the Tiimo aesthetic: serif day header, counter pill, soft
+//  progress card, and emoji-tiled exercise cards. All SwiftData logic is
+//  unchanged from the original — only the presentation layer was restyled.
+//
 
 import SwiftUI
 import SwiftData
@@ -13,37 +17,37 @@ struct TodayWorkoutView: View {
     @State private var didCelebrateFullWorkout = false
     @State private var showCompletionSummary = false
     @State private var todaySession: WorkoutSession?
-    
+
     var todayPlan: WorkoutDay? {
         let todayString = WorkoutHistoryManager.todayWeekdayString()
         return workoutDays.first { $0.dayName == todayString }
     }
-    
+
     var completedExerciseCount: Int {
         guard let plan = todayPlan else { return 0 }
         return plan.exercises.filter { $0.isFullyCompletedToday }.count
     }
-    
+
     var completedSetCount: Int {
         guard let plan = todayPlan else { return 0 }
         return plan.exercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
     }
-    
+
     var totalSetCount: Int {
         guard let plan = todayPlan else { return 0 }
         return plan.exercises.reduce(0) { $0 + $1.sets }
     }
-    
+
     var progress: Double {
         guard totalSetCount > 0 else { return 0 }
         return Double(completedSetCount) / Double(totalSetCount)
     }
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(.systemGroupedBackground).ignoresSafeArea()
-                
+                Theme.Color.background.ignoresSafeArea()
+
                 if let plan = todayPlan {
                     if plan.isRestDay {
                         restDayView
@@ -53,9 +57,9 @@ struct TodayWorkoutView: View {
                         workoutListView(plan: plan)
                     }
                 } else {
-                    Text("未找到计划").foregroundColor(.secondary)
+                    Text("未找到计划").foregroundStyle(Theme.Color.textSecondary)
                 }
-                
+
                 if showCompletionSummary, let plan = todayPlan {
                     WorkoutCompletionSummaryView(
                         completedSets: completedSetCount,
@@ -73,13 +77,13 @@ struct TodayWorkoutView: View {
                 }
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showCompletionSummary)
-            .navigationTitle("今日打卡")
+            .toolbar(.hidden, for: .navigationBar)
             .task(id: todayPlan?.persistentModelID) {
                 refreshTodaySessions()
             }
         }
     }
-    
+
     private func refreshTodaySessions() {
         guard let plan = todayPlan else {
             WidgetSyncManager.sync(workoutDays: workoutDays, context: modelContext)
@@ -97,14 +101,45 @@ struct TodayWorkoutView: View {
 }
 
 extension TodayWorkoutView {
-    
+
+    // MARK: Header
+
+    private func dayHeader(plan: WorkoutDay) -> some View {
+        VStack(spacing: Theme.Spacing.l) {
+            HStack {
+                CounterPill(emoji: "🎉", value: completedExerciseCount, total: plan.exercises.count)
+                Spacer()
+            }
+
+            VStack(spacing: Theme.Spacing.xs) {
+                Text(plan.dayName)
+                    .font(.displayLarge)
+                    .foregroundStyle(Theme.Color.textPrimary)
+                Text(Date.now, format: .dateTime.month(.wide).day().year())
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.xl)
+        .padding(.top, Theme.Spacing.s)
+    }
+
     private func workoutListView(plan: WorkoutDay) -> some View {
-        VStack(spacing: 10) {
-            progressHeader(plan: plan)
-                .padding(.top)
-            
-            ScrollView {
-                VStack(spacing: 12) {
+        VStack(spacing: Theme.Spacing.l) {
+            dayHeader(plan: plan)
+            progressCard(plan: plan)
+                .padding(.horizontal, Theme.Spacing.xl)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: Theme.Spacing.m) {
+                    SectionPill(
+                        title: "今日训练",
+                        count: plan.exercises.count,
+                        systemImage: "dumbbell.fill",
+                        tint: Theme.Color.tintPeach
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                     if let session = todaySession {
                         ForEach(plan.exercises.sorted(by: { $0.order < $1.order })) { exercise in
                             ExpandableExerciseRow(
@@ -127,46 +162,43 @@ extension TodayWorkoutView {
                         }
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 16)
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.bottom, Theme.Spacing.xl)
             }
         }
     }
-    
-    private func progressHeader(plan: WorkoutDay) -> some View {
+
+    private func progressCard(plan: WorkoutDay) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
                 Text("训练进度")
-                    .font(.headline)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.Color.textSecondary)
                 Text("\(completedSetCount) / \(totalSetCount) 组")
-                    .font(.title2.bold())
-                    .foregroundColor(.accentColor)
+                    .font(.display(28, weight: .bold))
+                    .foregroundStyle(Theme.Color.textPrimary)
                 Text("\(completedExerciseCount) / \(plan.exercises.count) 个动作已完成")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(Theme.Color.textSecondary)
             }
             Spacer()
-            
-            RingProgressView(progress: progress, size: 60)
+            RingProgressView(progress: progress, size: 64)
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
-        .padding(.horizontal)
+        .tiimoCard()
     }
-    
+
     private func handleSetProgressChanged(plan: WorkoutDay) {
         for exercise in plan.exercises {
             exercise.prepareForTodayIfNeeded()
         }
-        
+
         if todaySession == nil {
             todaySession = WorkoutHistoryManager.getOrCreateTodaySession(context: modelContext, plan: plan)
         }
         if let session = todaySession {
             WorkoutHistoryManager.syncSessionMetadata(session: session, plan: plan)
         }
-        
+
         let allExercisesDone = completedExerciseCount == plan.exercises.count && !plan.exercises.isEmpty
         if allExercisesDone && !didCelebrateFullWorkout {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -177,37 +209,38 @@ extension TodayWorkoutView {
         } else if !allExercisesDone {
             didCelebrateFullWorkout = false
         }
-        
+
         syncWidgetAndSave()
     }
-    
+
     private func syncWidgetAndSave() {
         WidgetSyncManager.sync(workoutDays: workoutDays, context: modelContext)
         try? modelContext.save()
     }
-    
+
+    // MARK: Empty / rest states
+
     private var restDayView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "battery.100")
-                .font(.system(size: 60))
-                .foregroundColor(.green)
-                .symbolEffect(.pulse)
+        VStack(spacing: Theme.Spacing.l) {
+            EmojiTile(emoji: "🔋", tint: Theme.Color.tintMint, size: 72)
             Text("今天是休息日")
-                .font(.title2.bold())
+                .font(.displayMedium)
+                .foregroundStyle(Theme.Color.textPrimary)
             Text("肌肉正在修复，好好放松一下吧！")
-                .foregroundColor(.secondary)
+                .foregroundStyle(Theme.Color.textSecondary)
         }
+        .padding(Theme.Spacing.xl)
     }
-    
+
     private var emptyPlanView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "clipboard")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
+        VStack(spacing: Theme.Spacing.l) {
+            EmojiTile(emoji: "📋", tint: Theme.Color.surfaceMuted, size: 72)
             Text("今日无训练安排")
-                .font(.title2.bold())
+                .font(.displayMedium)
+                .foregroundStyle(Theme.Color.textPrimary)
             Text("去「计划」页面添加一些动作吧")
-                .foregroundColor(.secondary)
+                .foregroundStyle(Theme.Color.textSecondary)
         }
+        .padding(Theme.Spacing.xl)
     }
 }

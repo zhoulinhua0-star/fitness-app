@@ -1,3 +1,8 @@
+//
+//  WorkoutCompletionSummaryView.swift
+//  FitnessApp
+//
+
 import SwiftUI
 
 struct WorkoutCompletionSummaryView: View {
@@ -6,63 +11,69 @@ struct WorkoutCompletionSummaryView: View {
     let completedExercises: Int
     let totalExercises: Int
     let onDismiss: () -> Void
-    
+
     @State private var didDismiss = false
-    
+
     var body: some View {
         VStack {
             Spacer()
-            
-            VStack(spacing: 20) {
-                Image(systemName: "trophy.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.accentColor.gradient)
+
+            VStack(spacing: Theme.Spacing.xl) {
+                Text("🏆")
+                    .font(.system(size: 56))
                     .symbolEffect(.bounce, value: completedSets)
-                
-                Text("今日训练完成")
-                    .font(.title2.bold())
-                    .foregroundStyle(.primary)
-                
-                VStack(spacing: 12) {
-                    summaryRow(title: "完成组数", value: "\(completedSets) / \(totalSets) 组")
-                    summaryRow(title: "完成动作", value: "\(completedExercises) / \(totalExercises) 个")
+
+                VStack(spacing: Theme.Spacing.xs) {
+                    Text("今日训练完成")
+                        .font(.displayMedium)
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text("出色完成！继续保持")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Theme.Color.textSecondary)
                 }
-                .padding()
-                .background(Color(.tertiarySystemGroupedBackground))
-                .cornerRadius(16)
+
+                VStack(spacing: Theme.Spacing.s) {
+                    summaryRow(label: "完成组数", value: "\(completedSets) / \(totalSets) 组")
+                    Divider().background(Theme.Color.hairline)
+                    summaryRow(label: "完成动作", value: "\(completedExercises) / \(totalExercises) 个")
+                }
+                .padding(Theme.Spacing.l)
+                .background(Theme.Color.surfaceMuted)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
+
+                Button("关闭", action: dismissOnce)
+                    .buttonStyle(.primaryCTA)
             }
-            .padding(24)
-            .background(Color(.secondarySystemGroupedBackground))
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(0.15), radius: 16, y: 8)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 32)
+            .padding(Theme.Spacing.xl)
+            .background(Theme.Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .shadow(color: Theme.Shadow.color, radius: 30, x: 0, y: 10)
+            .padding(.horizontal, Theme.Spacing.xl)
+            .padding(.bottom, 40)
             .onTapGesture { dismissOnce() }
             .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                    dismissOnce()
-                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { dismissOnce() }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.35).ignoresSafeArea())
+        .background(Color.black.opacity(0.4).ignoresSafeArea())
         .onTapGesture { dismissOnce() }
     }
-    
+
     private func dismissOnce() {
         guard !didDismiss else { return }
         didDismiss = true
         onDismiss()
     }
-    
-    private func summaryRow(title: String, value: String) -> some View {
+
+    private func summaryRow(label: String, value: String) -> some View {
         HStack {
-            Text(title)
-                .foregroundStyle(.secondary)
+            Text(label)
+                .foregroundStyle(Theme.Color.textSecondary)
             Spacer()
             Text(value)
-                .font(.headline)
-                .foregroundStyle(.primary)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Theme.Color.textPrimary)
         }
     }
 }

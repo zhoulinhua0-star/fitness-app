@@ -60,55 +60,46 @@ struct ExpandableExerciseRow: View {
                     )
             }
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Theme.Color.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                .stroke(isExpanded ? Theme.Color.accent : Theme.Color.hairline,
+                        lineWidth: isExpanded ? 1.5 : 1)
+        )
+        .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
         .animation(Self.expandSpring, value: isExpanded)
         .sensoryFeedback(.selection, trigger: isExpanded)
     }
     
     private var headerContent: some View {
-        HStack(spacing: 12) {
-            statusIcon
-            
+        HStack(spacing: Theme.Spacing.m) {
+            EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+
             VStack(alignment: .leading, spacing: 6) {
                 Text(exercise.name)
-                    .font(.headline)
-                    .strikethrough(isFullyCompleted, color: .secondary)
-                    .foregroundColor(isFullyCompleted ? .secondary : .primary)
-                
+                    .font(.system(size: 17, weight: .semibold))
+                    .strikethrough(isFullyCompleted, color: Theme.Color.textSecondary)
+                    .foregroundStyle(isFullyCompleted ? Theme.Color.textSecondary : Theme.Color.textPrimary)
+
                 Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
+                    .foregroundStyle(Theme.Color.textSecondary)
+
                 if let lastTimeSummary {
                     Text(lastTimeSummary)
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(Theme.Color.textSecondary)
                 }
-                
+
                 ProgressView(value: exercise.setProgress)
-                    .tint(.accentColor)
+                    .tint(Theme.Color.accent)
                     .animation(nil, value: exercise.setProgress)
             }
-            
+
             Spacer(minLength: 8)
-            
-            Image(systemName: "chevron.right")
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(.secondary)
-                .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                .animation(Self.expandSpring, value: isExpanded)
-        }
-    }
-    
-    @ViewBuilder
-    private var statusIcon: some View {
-        if isFullyCompleted {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
-                .foregroundColor(.accentColor)
-        } else {
-            RingProgressView(progress: exercise.setProgress, size: 36, lineWidth: 4)
+
+            CircleCheck(isComplete: isFullyCompleted)
         }
     }
     
@@ -207,7 +198,7 @@ struct ExpandableExerciseRow: View {
         
         var backgroundColor: Color {
             switch self {
-            case .completed, .upcoming: return Color(.tertiarySystemGroupedBackground)
+            case .completed, .upcoming: return Theme.Color.surfaceMuted
             case .next: return Color.accentColor.opacity(0.12)
             }
         }

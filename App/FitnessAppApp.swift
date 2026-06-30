@@ -10,7 +10,7 @@ import SwiftData
 struct FitnessAppApp: App {
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            RootView()
         }
         .modelContainer(for: [WorkoutDay.self, Exercise.self, WorkoutSession.self, SetLog.self])
     }

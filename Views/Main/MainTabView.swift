@@ -4,38 +4,36 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct MainTabView: View {
     var body: some View {
         TabView {
             TodayWorkoutView()
                 .tabItem {
-                    Image(systemName: "figure.run")
-                    Text("今日")
+                    Label("今日", systemImage: "dumbbell.fill")
                 }
-            
+
             AnalyticsView()
                 .tabItem {
-                    Image(systemName: "chart.bar.xaxis")
-                    Text("统计")
+                    Label("统计", systemImage: "chart.line.uptrend.xyaxis")
                 }
-            
+
             PlanSetupView()
                 .tabItem {
-                    Image(systemName: "list.bullet.clipboard")
-                    Text("计划")
+                    Label("计划", systemImage: "list.bullet.rectangle.portrait.fill")
                 }
-            
-            SettingsView()
+
+            ProfileView()
                 .tabItem {
-                    Image(systemName: "gearshape")
-                    Text("设置")
+                    Label("我的", systemImage: "person.crop.circle.fill")
                 }
         }
-        .tint(.accentColor)
+        .tint(Theme.Color.accent)
     }
 }
 
 #Preview {
     MainTabView()
+        .modelContainer(for: [WorkoutDay.self, Exercise.self, WorkoutSession.self, SetLog.self], inMemory: true)
 }
