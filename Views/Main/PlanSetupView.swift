@@ -190,7 +190,7 @@ struct PlanSetupView: View {
         Button(action: syncToCalendar) {
             HStack(spacing: Theme.Spacing.m) {
                 if isSyncing {
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Theme.Color.ctaLabel))
                     Text("Syncing...")
                 } else if showSuccessFeedback {
                     Image(systemName: "checkmark.circle.fill")
@@ -201,7 +201,7 @@ struct PlanSetupView: View {
                 }
             }
             .font(.system(size: 17, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(showSuccessFeedback ? .white : Theme.Color.ctaLabel)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background {
@@ -301,7 +301,11 @@ struct PlanDayCard: View {
 
             if workoutDay.isRestDay {
                 VStack(spacing: Theme.Spacing.xs) {
-                    Text("🛋️").font(.system(size: 28))
+                    Image("RestDayIcon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                        .shadow(color: Color.red.opacity(0.25), radius: 4, y: 2)
                     Text("充电恢复中")
                         .font(.caption)
                         .foregroundStyle(Theme.Color.textSecondary)
