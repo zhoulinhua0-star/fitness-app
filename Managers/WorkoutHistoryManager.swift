@@ -27,36 +27,54 @@ enum WorkoutHistoryManager {
     }
     
     static func getOrCreateTodaySession(context: ModelContext, plan: WorkoutDay) -> WorkoutSession {
+        getOrCreateTodaySession(context: context, dayName: plan.dayName, exercises: plan.exercises)
+    }
+
+    /// Session accessor keyed on an arbitrary exercise list — used both by the
+    /// weekly plan and by ad-hoc improv workouts, so both share one code path.
+    static func getOrCreateTodaySession(context: ModelContext, dayName: String, exercises: [Exercise]) -> WorkoutSession {
         if let existing = fetchTodaySession(context: context) {
-            syncSessionMetadata(session: existing, plan: plan)
+            syncSessionMetadata(session: existing, dayName: dayName, exercises: exercises)
             return existing
         }
-        
+
         let session = WorkoutSession(
             sessionDate: startOfDay(),
-            dayName: plan.dayName,
-            plannedSetCount: plannedSetCount(for: plan),
-            completedSetCount: completedSetCount(for: plan)
+            dayName: dayName,
+            plannedSetCount: plannedSetCount(for: exercises),
+            completedSetCount: completedSetCount(for: exercises)
         )
         context.insert(session)
         return session
     }
-    
+
     static func plannedSetCount(for plan: WorkoutDay) -> Int {
-        plan.exercises.reduce(0) { $0 + $1.sets }
+        plannedSetCount(for: plan.exercises)
     }
-    
+
     static func completedSetCount(for plan: WorkoutDay) -> Int {
-        plan.exercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+        completedSetCount(for: plan.exercises)
     }
-    
+
+    static func plannedSetCount(for exercises: [Exercise]) -> Int {
+        exercises.reduce(0) { $0 + $1.sets }
+    }
+
+    static func completedSetCount(for exercises: [Exercise]) -> Int {
+        exercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+    }
+
     static func syncSessionMetadata(session: WorkoutSession, plan: WorkoutDay) {
-        session.plannedSetCount = plannedSetCount(for: plan)
-        session.completedSetCount = completedSetCount(for: plan)
-        session.dayName = plan.dayName
-        
-        let allDone = !plan.exercises.isEmpty &&
-            plan.exercises.allSatisfy { $0.isFullyCompletedToday }
+        syncSessionMetadata(session: session, dayName: plan.dayName, exercises: plan.exercises)
+    }
+
+    static func syncSessionMetadata(session: WorkoutSession, dayName: String, exercises: [Exercise]) {
+        session.plannedSetCount = plannedSetCount(for: exercises)
+        session.completedSetCount = completedSetCount(for: exercises)
+        session.dayName = dayName
+
+        let allDone = !exercises.isEmpty &&
+            exercises.allSatisfy { $0.isFullyCompletedToday }
         session.isComplete = allDone
         session.completedAt = allDone ? (session.completedAt ?? .now) : nil
     }

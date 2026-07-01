@@ -343,6 +343,7 @@
 				DEVELOPMENT_TEAM = VN3RC8953L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Pyrpulse;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "我们需要访问您的日历来帮您同步每天的健身课表";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "我们需要发送每日训练提醒，帮助你按时完成训练";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -378,6 +379,7 @@
 				DEVELOPMENT_TEAM = VN3RC8953L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Pyrpulse;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "我们需要访问您的日历来帮您同步每天的健身课表";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "我们需要发送每日训练提醒，帮助你按时完成训练";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

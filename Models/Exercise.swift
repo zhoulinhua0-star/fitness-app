@@ -10,7 +10,10 @@ final class Exercise {
     var lastCompletedDate: Date?
     var sessionDate: Date?
     var completedSetCount: Int
-    
+    /// True for ad-hoc "即兴" exercises that live only for today and are not
+    /// part of any persistent weekly plan (not attached to a WorkoutDay).
+    var isImprov: Bool = false
+
     init(
         name: String,
         sets: Int,
@@ -18,7 +21,8 @@ final class Exercise {
         order: Int = 0,
         lastCompletedDate: Date? = nil,
         sessionDate: Date? = nil,
-        completedSetCount: Int = 0
+        completedSetCount: Int = 0,
+        isImprov: Bool = false
     ) {
         self.name = name
         self.sets = sets
@@ -27,6 +31,7 @@ final class Exercise {
         self.lastCompletedDate = lastCompletedDate
         self.sessionDate = sessionDate
         self.completedSetCount = completedSetCount
+        self.isImprov = isImprov
     }
 }
 

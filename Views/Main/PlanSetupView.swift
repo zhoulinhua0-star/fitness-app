@@ -62,12 +62,16 @@ private struct PlanModeToggle: View {
 }
 
 struct PlanSetupView: View {
+    /// Switches the app to the "今日" tab (used after starting an improv workout).
+    var onSwitchToToday: () -> Void = {}
+
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutDays: [WorkoutDay]
 
     @State private var isSyncing = false
     @State private var showSuccessFeedback = false
     @State private var planMode: PlanMode = .plan
+    @State private var shimmerX: CGFloat = -0.6
 
     private let columns = [GridItem(.flexible(), spacing: Theme.Spacing.m), GridItem(.flexible(), spacing: Theme.Spacing.m)]
 
@@ -109,7 +113,7 @@ struct PlanSetupView: View {
                         case .plan:
                             planContent
                         case .improv:
-                            ImprovModeView()
+                            ImprovModeView(onStartWorkout: onSwitchToToday)
                                 .padding(.top, Theme.Spacing.xs)
                         }
                     }
@@ -186,19 +190,53 @@ struct PlanSetupView: View {
         Button(action: syncToCalendar) {
             HStack(spacing: Theme.Spacing.m) {
                 if isSyncing {
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Theme.Color.ctaLabel))
-                    Text("同步中...")
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Text("Syncing...")
                 } else if showSuccessFeedback {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("同步成功！")
+                    Text("Synced!")
                 } else {
                     Image(systemName: "calendar.badge.plus")
-                    Text("同步到日历")
+                    Text("Sync to Calendar")
+                }
+            }
+            .font(.system(size: 17, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background {
+                if showSuccessFeedback {
+                    Capsule()
+                        .fill(LinearGradient(
+                            colors: [Color(hex: 0x06B6D4), Color(hex: 0x8B5CF6), Color(hex: 0xEC4899)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .overlay(
+                            Capsule()
+                                .fill(LinearGradient(
+                                    colors: [.clear, .white.opacity(0.38), .clear],
+                                    startPoint: .init(x: shimmerX, y: 0.5),
+                                    endPoint: .init(x: shimmerX + 0.6, y: 0.5)
+                                ))
+                        )
+                } else {
+                    Capsule().fill(Theme.Color.cta)
+                }
+            }
+            .scaleEffect(showSuccessFeedback ? 1.03 : 1.0)
+            .animation(.spring(response: 0.45, dampingFraction: 0.65), value: showSuccessFeedback)
+        }
+        .buttonStyle(.plain)
+        .disabled(isSyncing || showSuccessFeedback)
+        .onChange(of: showSuccessFeedback) { _, isSuccess in
+            if isSuccess {
+                shimmerX = -0.6
+                withAnimation(.easeInOut(duration: 0.9).delay(0.15)) {
+                    shimmerX = 1.2
                 }
             }
         }
-        .buttonStyle(.primaryCTA)
-        .disabled(isSyncing || showSuccessFeedback)
     }
 }
 

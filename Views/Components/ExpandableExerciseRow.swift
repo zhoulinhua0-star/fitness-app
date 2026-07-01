@@ -3,14 +3,19 @@ import SwiftData
 
 struct ExpandableExerciseRow: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var exercise: Exercise
     let session: WorkoutSession
     let isExpanded: Bool
     let onToggleExpand: () -> Void
     let onSetProgressChanged: () -> Void
-    
+
     @State private var showRestTimer = false
     @State private var restTimerToken = UUID()
+    @State private var restTimerEndDate: Date = .now
+
+    private static let restTimerEndDateKey = "restTimerEndDate"
+    private static let restTimerExerciseNameKey = "restTimerExerciseName"
     
     private var settings: AppSettings { AppSettings.shared }
     
@@ -70,6 +75,10 @@ struct ExpandableExerciseRow: View {
         .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
         .animation(Self.expandSpring, value: isExpanded)
         .sensoryFeedback(.selection, trigger: isExpanded)
+        .onAppear { restoreRestTimerIfNeeded() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active { restoreRestTimerIfNeeded() }
+        }
     }
     
     private var headerContent: some View {
@@ -114,13 +123,9 @@ struct ExpandableExerciseRow: View {
             
             if showRestTimer && !isFullyCompleted {
                 RestTimerView(
-                    durationSeconds: settings.defaultRestSeconds,
-                    onSkip: {
-                        showRestTimer = false
-                    },
-                    onComplete: {
-                        showRestTimer = false
-                    }
+                    endDate: restTimerEndDate,
+                    onSkip: { cancelRestTimer() },
+                    onComplete: { cancelRestTimer() }
                 )
                 .id(restTimerToken)
             }
@@ -228,18 +233,49 @@ struct ExpandableExerciseRow: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             cancelRestTimer()
         } else if !exercise.isFullyCompletedToday {
+            let endDate = Date().addingTimeInterval(TimeInterval(settings.defaultRestSeconds))
             NotificationManager.scheduleRestEndNotification(
                 after: settings.defaultRestSeconds,
                 exerciseName: exercise.name
             )
+            restTimerEndDate = endDate
+            persistRestTimer(endDate: endDate)
             showRestTimer = true
             restTimerToken = UUID()
         }
     }
-    
+
     private func cancelRestTimer() {
         NotificationManager.cancelRestEndNotification()
+        clearPersistedRestTimer()
         showRestTimer = false
+    }
+
+    private func persistRestTimer(endDate: Date) {
+        UserDefaults.standard.set(endDate.timeIntervalSince1970, forKey: Self.restTimerEndDateKey)
+        UserDefaults.standard.set(exercise.name, forKey: Self.restTimerExerciseNameKey)
+    }
+
+    private func clearPersistedRestTimer() {
+        UserDefaults.standard.removeObject(forKey: Self.restTimerEndDateKey)
+        UserDefaults.standard.removeObject(forKey: Self.restTimerExerciseNameKey)
+    }
+
+    private func restoreRestTimerIfNeeded() {
+        let storedName = UserDefaults.standard.string(forKey: Self.restTimerExerciseNameKey)
+        guard storedName == exercise.name, !exercise.isFullyCompletedToday else {
+            if storedName == exercise.name { clearPersistedRestTimer() }
+            return
+        }
+        let interval = UserDefaults.standard.double(forKey: Self.restTimerEndDateKey)
+        guard interval > 0 else { return }
+        let endDate = Date(timeIntervalSince1970: interval)
+        guard endDate > Date() else {
+            clearPersistedRestTimer()
+            return
+        }
+        restTimerEndDate = endDate
+        showRestTimer = true
     }
     
     private func completeNextSet() {

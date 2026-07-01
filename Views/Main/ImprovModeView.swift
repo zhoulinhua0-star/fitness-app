@@ -6,8 +6,13 @@
 //  User picks muscle groups → taps exercises to add → starts training.
 //  No pre-planning required.
 //
+//  Starting a workout injects the chosen exercises into today's logging
+//  surface ("今日" tab) as ad-hoc improv exercises, so all check-in happens
+//  through the one shared UI — there is no separate improv session screen.
+//
 
 import SwiftUI
+import SwiftData
 
 // MARK: - Floating mascot
 
@@ -151,9 +156,13 @@ private struct ExerciseSuggestionRow: View {
 // MARK: - Main view
 
 struct ImprovModeView: View {
+    /// Called after exercises are injected into today, so the parent can
+    /// switch to the "今日" tab where the user logs the workout.
+    var onStartWorkout: () -> Void = {}
+
+    @Environment(\.modelContext) private var modelContext
     @State private var selectedGroups: Set<MuscleGroupData> = []
     @State private var sessionExercises: [ImprovEntry] = []
-    @State private var showSession = false
 
     // Staggered entrance animation triggers
     @State private var mascotAppeared = false
@@ -281,14 +290,39 @@ struct ImprovModeView: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sessionExercises.isEmpty)
             }
         }
-        .fullScreenCover(isPresented: $showSession) {
-            ImprovSessionView(exercises: sessionExercises) {
-                // Called on session completion — reset the builder
-                sessionExercises = []
-                selectedGroups = []
-            }
-        }
         .onAppear { triggerEntranceAnimation() }
+    }
+
+    // MARK: Start — inject exercises into today's logging surface
+
+    private func startWorkout() {
+        // Replace any existing improv exercises (stale or from a prior build)
+        // so today's improv workout is exactly the current selection.
+        if let existing = try? modelContext.fetch(FetchDescriptor<Exercise>(
+            predicate: #Predicate { $0.isImprov }
+        )) {
+            for exercise in existing { modelContext.delete(exercise) }
+        }
+
+        let now = Date.now
+        for (index, entry) in sessionExercises.enumerated() {
+            let exercise = Exercise(
+                name: entry.name,
+                sets: entry.sets,
+                reps: entry.reps,
+                order: index,
+                sessionDate: now,
+                completedSetCount: 0,
+                isImprov: true
+            )
+            modelContext.insert(exercise)
+        }
+        try? modelContext.save()
+
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        sessionExercises = []
+        selectedGroups = []
+        onStartWorkout()
     }
 
     // MARK: Floating start bar
@@ -308,7 +342,7 @@ struct ImprovModeView: View {
 
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                showSession = true
+                startWorkout()
             } label: {
                 HStack(spacing: Theme.Spacing.s) {
                     Text("开始训练")

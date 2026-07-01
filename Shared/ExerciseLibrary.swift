@@ -3,7 +3,8 @@
 //  FitnessApp
 //
 //  Static exercise library organised by muscle group, plus the ImprovEntry
-//  value type that flows from ImprovModeView into ImprovSessionView.
+//  value type the improv builder uses to stage a workout before injecting it
+//  into today's logging surface.
 //
 
 import SwiftUI
@@ -55,7 +56,7 @@ enum ExerciseLibrary {
     ]
 }
 
-// MARK: - ImprovEntry  (value type shared between ImprovModeView and ImprovSessionView)
+// MARK: - ImprovEntry  (staging value type used by the improv builder)
 
 struct ImprovEntry: Identifiable {
     let id: UUID

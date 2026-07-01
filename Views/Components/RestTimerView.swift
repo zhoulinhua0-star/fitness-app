@@ -8,7 +8,6 @@ import SwiftUI
 struct RestTimerView: View {
     enum Phase { case running, finished }
 
-    let durationSeconds: Int
     let onSkip: () -> Void
     let onComplete: () -> Void
 
@@ -16,11 +15,10 @@ struct RestTimerView: View {
     @State private var phase: Phase = .running
     @State private var didFireCompletionHaptic = false
 
-    init(durationSeconds: Int, onSkip: @escaping () -> Void, onComplete: @escaping () -> Void) {
-        self.durationSeconds = durationSeconds
+    init(endDate: Date, onSkip: @escaping () -> Void, onComplete: @escaping () -> Void) {
         self.onSkip = onSkip
         self.onComplete = onComplete
-        _endDate = State(initialValue: Date().addingTimeInterval(TimeInterval(durationSeconds)))
+        _endDate = State(initialValue: endDate)
     }
 
     var body: some View {
