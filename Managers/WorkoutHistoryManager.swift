@@ -239,24 +239,25 @@ enum WorkoutHistoryManager {
         todayStart: Date,
         plan: WorkoutDay?
     ) -> Int {
-        guard let plan, !plan.isRestDay else { return 0 }
-        
         let calendar = Calendar.current
         var total = 0
-        
+
         for offset in 0..<7 {
             guard let date = calendar.date(byAdding: .day, value: -offset, to: todayStart) else { continue }
             let weekday = (calendar.component(.weekday, from: date) + 5) % 7
             guard weekday == weekdayIndex else { continue }
-            
-            if calendar.isDateInToday(date), plan.dayName == dayOrder[weekdayIndex] {
-                total += completedSetCount(for: plan)
-            } else if let session = fetchSession(on: date, context: context),
-                      session.dayName == dayOrder[weekdayIndex] {
+
+            // A recorded session (plan-based or improv) is authoritative for that
+            // date regardless of which weekday's plan it's nominally attached to —
+            // improv sessions are always named "即兴训练" and would never match
+            // `dayOrder[weekdayIndex]`, so we no longer require a dayName match.
+            if let session = fetchSession(on: date, context: context) {
                 total += session.completedSetCount
+            } else if calendar.isDateInToday(date), let plan, !plan.isRestDay {
+                total += completedSetCount(for: plan)
             }
         }
-        
+
         return total
     }
     

@@ -118,26 +118,39 @@ private struct ExerciseSuggestionRow: View {
     let name: String
     let groupTint: Color
     let isAdded: Bool
+    @Binding var sets: Int
+    @Binding var reps: Int
     let onToggle: () -> Void
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.m) {
-            EmojiTile(emoji: ExerciseEmoji.forName(name), tint: groupTint, size: 44)
+        VStack(spacing: Theme.Spacing.m) {
+            HStack(spacing: Theme.Spacing.m) {
+                EmojiTile(emoji: ExerciseEmoji.forName(name), tint: groupTint, size: 44)
 
-            Text(name)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Theme.Color.textPrimary)
+                Text(name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Color.textPrimary)
 
-            Spacer()
+                Spacer()
 
-            Button(action: onToggle) {
-                Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle")
-                    .font(.system(size: 26))
-                    .foregroundStyle(isAdded ? Theme.Color.success : Theme.Color.accent)
-                    .contentTransition(.symbolEffect(.replace))
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAdded)
+                Button(action: onToggle) {
+                    Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle")
+                        .font(.system(size: 26))
+                        .foregroundStyle(isAdded ? Theme.Color.success : Theme.Color.accent)
+                        .contentTransition(.symbolEffect(.replace))
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAdded)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+
+            if isAdded {
+                HStack(spacing: Theme.Spacing.xl) {
+                    ThemedStepper(title: "组数", value: $sets, range: 1...20)
+                    ThemedStepper(title: "次数", value: $reps, range: 1...100)
+                    Spacer()
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(Theme.Spacing.m)
         .background(isAdded ? Theme.Color.tintMint : Theme.Color.surface)
@@ -177,6 +190,28 @@ struct ImprovModeView: View {
 
     private func isAdded(_ name: String) -> Bool {
         sessionExercises.contains(where: { $0.name == name })
+    }
+
+    private func setsBinding(for name: String) -> Binding<Int> {
+        Binding(
+            get: { sessionExercises.first(where: { $0.name == name })?.sets ?? 3 },
+            set: { newValue in
+                if let idx = sessionExercises.firstIndex(where: { $0.name == name }) {
+                    sessionExercises[idx].sets = newValue
+                }
+            }
+        )
+    }
+
+    private func repsBinding(for name: String) -> Binding<Int> {
+        Binding(
+            get: { sessionExercises.first(where: { $0.name == name })?.reps ?? 10 },
+            set: { newValue in
+                if let idx = sessionExercises.firstIndex(where: { $0.name == name }) {
+                    sessionExercises[idx].reps = newValue
+                }
+            }
+        )
     }
 
     private func toggle(_ name: String, group: MuscleGroupData) {
@@ -269,6 +304,8 @@ struct ImprovModeView: View {
                                         name: item.name,
                                         groupTint: item.group.tint,
                                         isAdded: isAdded(item.name),
+                                        sets: setsBinding(for: item.name),
+                                        reps: repsBinding(for: item.name),
                                         onToggle: { toggle(item.name, group: item.group) }
                                     )
                                 }

@@ -19,6 +19,10 @@ struct TodayWorkoutView: View {
     @Query private var workoutDays: [WorkoutDay]
     @Query(filter: #Predicate<Exercise> { $0.isImprov }) private var improvExercises: [Exercise]
     @AppStorage("expandedExerciseName") private var expandedExerciseName: String = ""
+    /// Start-of-day timestamp of the day the user finished an improv workout.
+    /// While it matches today, the plan stays hidden behind a "day complete"
+    /// card; it self-expires at midnight (tomorrow's startOfDay ≠ stamp).
+    @AppStorage("improvFinishedDayStamp") private var improvFinishedDayStamp: Double = 0
     @State private var didCelebrateFullWorkout = false
     @State private var showCompletionSummary = false
     @State private var todaySession: WorkoutSession?
@@ -41,6 +45,12 @@ struct TodayWorkoutView: View {
     /// When true, today is being freestyled — improv takes over the view and
     /// the weekly plan (untouched) simply returns tomorrow.
     var isImprovActive: Bool { !todayImprovExercises.isEmpty }
+
+    /// True after 「结束即兴」 on a day where sets were logged: training is
+    /// done for today, so the plan stays hidden until tomorrow.
+    var isDayFinishedToday: Bool {
+        improvFinishedDayStamp == WorkoutHistoryManager.startOfDay().timeIntervalSince1970
+    }
 
     /// The exercises actually shown & logged today, whatever the source.
     var activeExercises: [Exercise] {
@@ -73,7 +83,7 @@ struct TodayWorkoutView: View {
     /// Re-runs session setup whenever the active workout meaningfully changes
     /// (day rollover, plan edits, or improv exercises being injected/cleared).
     private var refreshKey: String {
-        "\(headerDayName)#\(activeExercises.count)#\(isImprovActive)"
+        "\(headerDayName)#\(activeExercises.count)#\(isImprovActive)#\(isDayFinishedToday)"
     }
 
     var body: some View {
@@ -83,6 +93,8 @@ struct TodayWorkoutView: View {
 
                 if isImprovActive {
                     workoutListView
+                } else if isDayFinishedToday {
+                    dayCompletedView
                 } else if let plan = todayPlan {
                     if plan.isRestDay {
                         restDayView
@@ -121,6 +133,14 @@ struct TodayWorkoutView: View {
 
     private func refreshTodaySessions() {
         purgeStaleImprovExercises()
+
+        // Training is done for today (improv finished): leave today's stored
+        // session untouched — re-syncing here would overwrite its "即兴训练"
+        // name and logged counts with the plan's zero-progress numbers.
+        guard !isDayFinishedToday else {
+            try? modelContext.save()
+            return
+        }
 
         let exercises = activeExercises
         for exercise in exercises {
@@ -282,10 +302,24 @@ extension TodayWorkoutView {
         syncWidgetAndSave()
     }
 
-    /// End the improv session and return to the weekly plan. Logged sets are
-    /// already saved to history (WorkoutSession/SetLog), so deleting the
-    /// ad-hoc exercises here does not lose any progress.
+    /// End the improv session. If any sets were logged, today counts as
+    /// trained: the session record is frozen as "即兴训练" and the plan stays
+    /// hidden behind `dayCompletedView` until tomorrow. If nothing was
+    /// logged, this is just backing out — the plan reappears as before.
     private func exitImprov() {
+        let trainedToday = completedSetCount > 0
+
+        if trainedToday, let session = todaySession {
+            // Freeze the improv record before the exercises are deleted —
+            // afterwards `refreshTodaySessions` skips syncing entirely.
+            WorkoutHistoryManager.syncSessionMetadata(
+                session: session,
+                dayName: "即兴训练",
+                exercises: todayImprovExercises
+            )
+            improvFinishedDayStamp = WorkoutHistoryManager.startOfDay().timeIntervalSince1970
+        }
+
         for exercise in todayImprovExercises {
             modelContext.delete(exercise)
         }
@@ -293,12 +327,66 @@ extension TodayWorkoutView {
         didCelebrateFullWorkout = false
         showCompletionSummary = false
         try? modelContext.save()
-        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+
+        if trainedToday {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        }
     }
 
     private func syncWidgetAndSave() {
         WidgetSyncManager.sync(workoutDays: workoutDays, context: modelContext)
         try? modelContext.save()
+    }
+
+    // MARK: Day completed (improv finished)
+
+    /// Shown for the rest of the day after 「结束即兴」: a summary of the
+    /// finished improv session instead of the (already-trained-past) plan,
+    /// with a small escape hatch for the rare second workout.
+    private var dayCompletedView: some View {
+        let session = WorkoutHistoryManager.fetchTodaySession(context: modelContext)
+        let setCount = session?.completedSetCount ?? 0
+        let exerciseCount = Set((session?.setLogs ?? []).map(\.exerciseName)).count
+
+        return VStack(spacing: Theme.Spacing.l) {
+            EmojiTile(emoji: "✅", tint: Theme.Color.tintMint, size: 72)
+            Text("今日训练已完成")
+                .font(.displayMedium)
+                .foregroundStyle(Theme.Color.textPrimary)
+            VStack(spacing: Theme.Spacing.xs) {
+                Text("即兴训练 · \(exerciseCount) 个动作 · \(setCount) 组")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Color.textPrimary)
+                Text("练得不错，好好休息，明天见！")
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
+
+            Button(action: resumeTodayPlan) {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.uturn.backward")
+                    Text("继续今日计划")
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.Color.textSecondary)
+                .padding(.horizontal, Theme.Spacing.m)
+                .padding(.vertical, Theme.Spacing.s)
+                .background(Theme.Color.surfaceMuted, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, Theme.Spacing.m)
+        }
+        .padding(Theme.Spacing.xl)
+    }
+
+    /// Opt back into today's plan for a second workout — clears the stamp;
+    /// the `.task(id: refreshKey)` then restores the normal plan flow.
+    private func resumeTodayPlan() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            improvFinishedDayStamp = 0
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     // MARK: Empty / rest states

@@ -14,6 +14,11 @@ struct AnalyticsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var workoutDays: [WorkoutDay]
     @Query(sort: \WorkoutSession.sessionDate, order: .reverse) private var sessions: [WorkoutSession]
+    @Query(filter: #Predicate<Exercise> { $0.isImprov }) private var improvExercises: [Exercise]
+    /// Set by TodayWorkoutView when an improv workout is finished — while it
+    /// matches today, today's numbers come from the stored session record
+    /// rather than the (untouched, 0-progress) weekly plan.
+    @AppStorage("improvFinishedDayStamp") private var improvFinishedDayStamp: Double = 0
 
     private struct WeeklyChartEntry: Identifiable {
         let id: String
@@ -35,12 +40,40 @@ struct AnalyticsView: View {
         return workoutDays.first { $0.dayName == dayName }
     }
 
+    private var todayImprovExercises: [Exercise] {
+        improvExercises.filter { $0.sessionDate.map { Calendar.current.isDateInToday($0) } ?? false }
+    }
+
+    private var isImprovActiveToday: Bool { !todayImprovExercises.isEmpty }
+
+    private var isDayFinishedToday: Bool {
+        improvFinishedDayStamp == WorkoutHistoryManager.startOfDay().timeIntervalSince1970
+    }
+
+    /// Today's frozen session record (only consulted once improv is finished —
+    /// the live @Query keeps this current without a manual fetch).
+    private var todayFinishedSession: WorkoutSession? {
+        sessions.first { Calendar.current.isDate($0.sessionDate, inSameDayAs: .now) }
+    }
+
     private var todayCompletedSets: Int {
+        if isImprovActiveToday {
+            return WorkoutHistoryManager.completedSetCount(for: todayImprovExercises)
+        }
+        if isDayFinishedToday {
+            return todayFinishedSession?.completedSetCount ?? 0
+        }
         guard let plan = todayPlan else { return 0 }
         return WorkoutHistoryManager.completedSetCount(for: plan)
     }
 
     private var todayPlannedSets: Int {
+        if isImprovActiveToday {
+            return WorkoutHistoryManager.plannedSetCount(for: todayImprovExercises)
+        }
+        if isDayFinishedToday {
+            return todayFinishedSession?.plannedSetCount ?? 0
+        }
         guard let plan = todayPlan else { return 0 }
         return WorkoutHistoryManager.plannedSetCount(for: plan)
     }
@@ -127,7 +160,7 @@ extension AnalyticsView {
             SectionPill(title: "今日实时进度", systemImage: "bolt.fill", tint: Theme.Color.tintPeach)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let plan = todayPlan, !plan.isRestDay, !plan.exercises.isEmpty {
+            if isImprovActiveToday || isDayFinishedToday || (todayPlan.map { !$0.isRestDay && !$0.exercises.isEmpty } ?? false) {
                 HStack {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         HStack(alignment: .lastTextBaseline, spacing: 4) {
@@ -138,7 +171,9 @@ extension AnalyticsView {
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(Theme.Color.textSecondary)
                         }
-                        Text(plan.dayName)
+                        Text(isImprovActiveToday
+                            ? "即兴训练"
+                            : (isDayFinishedToday ? "即兴训练 · 已完成" : (todayPlan?.dayName ?? "")))
                             .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(Theme.Color.textSecondary)
                     }
