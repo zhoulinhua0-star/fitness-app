@@ -1,0 +1,462 @@
+<title>RepDay 上架路线图</title>
+<style>
+  :root {
+    --ground: #F7F5F2;
+    --surface: #FFFFFF;
+    --surface-2: #F1EDE8;
+    --ink: #1C1917;
+    --muted: #78716C;
+    --faint: #A8A29C;
+    --accent: #DC2626;
+    --accent-soft: #FBE4E4;
+    --good: #3F9D6E;
+    --good-soft: #E1F1E9;
+    --hair: #E7E2DB;
+    --shadow: 0 1px 2px rgba(28,25,23,.04), 0 8px 24px rgba(28,25,23,.05);
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0E0D0C;
+      --surface: #1A1817;
+      --surface-2: #232019;
+      --ink: #F5F1EC;
+      --muted: #A8A29C;
+      --faint: #78716C;
+      --accent: #F04444;
+      --accent-soft: #3A1E1E;
+      --good: #5FBE8C;
+      --good-soft: #1E3329;
+      --hair: #2C2825;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0E0D0C; --surface: #1A1817; --surface-2: #232019;
+    --ink: #F5F1EC; --muted: #A8A29C; --faint: #78716C;
+    --accent: #F04444; --accent-soft: #3A1E1E; --good: #5FBE8C; --good-soft: #1E3329;
+    --hair: #2C2825; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"] {
+    --ground: #F7F5F2; --surface: #FFFFFF; --surface-2: #F1EDE8;
+    --ink: #1C1917; --muted: #78716C; --faint: #A8A29C;
+    --accent: #DC2626; --accent-soft: #FBE4E4; --good: #3F9D6E; --good-soft: #E1F1E9;
+    --hair: #E7E2DB; --shadow: 0 1px 2px rgba(28,25,23,.04), 0 8px 24px rgba(28,25,23,.05);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--sans); line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 22px 120px; }
+
+  /* Masthead */
+  .mast {
+    padding: 56px 0 34px; border-bottom: 1px solid var(--hair);
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .mast-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand .logo {
+    font-family: var(--mono); font-weight: 700; font-size: 13px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent);
+    border: 1.5px solid var(--accent); padding: 4px 9px; border-radius: 7px;
+  }
+  .brand .kick {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 700; letter-spacing: -.02em;
+    font-size: clamp(34px, 6vw, 56px); line-height: 1.02; margin: 0;
+    text-wrap: balance;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .sub { color: var(--muted); font-size: 17px; max-width: 62ch; margin: 0; }
+
+  .theme-btn {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .06em;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--hair); border-radius: 999px;
+    padding: 7px 13px; cursor: pointer; white-space: nowrap;
+  }
+  .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Meta strip */
+  .strip {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--hair); border: 1px solid var(--hair); border-radius: 14px;
+    overflow: hidden; margin-top: 30px;
+  }
+  .strip > div { background: var(--surface); padding: 16px 18px; }
+  .strip .k { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .strip .v { font-family: var(--serif); font-size: 24px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .strip .v small { font-family: var(--sans); font-size: 13px; font-weight: 400; color: var(--muted); }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin: 28px 0 8px; }
+  .tag {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .04em;
+    padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .tag.you { color: var(--accent); background: var(--accent-soft); }
+  .tag.claude { color: var(--good); background: var(--good-soft); }
+  .tag.done { color: var(--good); background: var(--good-soft); }
+  .tag.dot::before { content: "●"; font-size: 8px; }
+
+  /* Done panel */
+  .done-panel {
+    margin-top: 34px; background: var(--surface); border: 1px solid var(--hair);
+    border-radius: 16px; padding: 22px 24px; box-shadow: var(--shadow);
+  }
+  .done-panel h2 { font-family: var(--serif); font-size: 20px; margin: 0 0 4px; }
+  .done-panel p.lead { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .done-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+  .done-list li { display: flex; gap: 11px; align-items: flex-start; font-size: 14.5px; }
+  .done-list .chk {
+    color: var(--good); font-weight: 700; flex: none; margin-top: 1px;
+    font-family: var(--mono);
+  }
+  .done-list code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+
+  /* Phase */
+  .phase { margin-top: 46px; scroll-margin-top: 20px; }
+  .phase-head { display: flex; align-items: baseline; gap: 16px; }
+  .phase-num {
+    font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--accent);
+    letter-spacing: .1em; flex: none; padding-top: 8px;
+  }
+  .phase-title { font-family: var(--serif); font-weight: 700; font-size: clamp(23px, 3.4vw, 30px); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  .phase-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 8px 0 0 0; padding-left: 46px; }
+  .phase-meta .m { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .phase-meta .m b { color: var(--ink); font-weight: 600; }
+
+  .card {
+    margin: 18px 0 0 46px; background: var(--surface); border: 1px solid var(--hair);
+    border-radius: 16px; padding: 6px 26px 22px; box-shadow: var(--shadow);
+  }
+  @media (max-width: 620px) {
+    .phase-meta, .card { padding-left: 0; margin-left: 0; }
+    .card { padding: 6px 18px 18px; }
+  }
+
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+  ol.steps > li {
+    counter-increment: s; position: relative; padding: 18px 0 18px 42px;
+    border-bottom: 1px solid var(--hair);
+  }
+  ol.steps > li:last-child { border-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(s); position: absolute; left: 0; top: 18px;
+    font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--muted);
+    width: 26px; height: 26px; border: 1px solid var(--hair); border-radius: 8px;
+    display: grid; place-items: center; background: var(--surface-2);
+  }
+  ol.steps .st { font-weight: 600; font-size: 15.5px; margin: 2px 0 4px; }
+  ol.steps p { margin: 4px 0; color: var(--muted); font-size: 14.5px; }
+  ol.steps p.body { color: var(--ink); }
+  ol.steps code, .inline-code {
+    font-family: var(--mono); font-size: 12.5px; background: var(--surface-2);
+    padding: 1.5px 6px; border-radius: 5px; color: var(--ink);
+    overflow-wrap: break-word;
+  }
+  .path { color: var(--accent); }
+
+  .cli {
+    font-family: var(--mono); font-size: 12.5px; background: var(--surface-2);
+    border: 1px solid var(--hair); border-radius: 10px; padding: 12px 14px;
+    margin: 10px 0 2px; overflow-x: auto; white-space: pre; color: var(--ink);
+  }
+
+  .note {
+    margin: 12px 0 2px; padding: 12px 15px; border-radius: 10px;
+    font-size: 13.5px; line-height: 1.55;
+    background: var(--surface-2); border: 1px solid var(--hair);
+  }
+  .note.warn { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .note.warn b, .note.warn .lbl { color: var(--accent); }
+  .note .lbl { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 3px; }
+  .note.info .lbl { color: var(--muted); }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+  a:hover { border-bottom-color: var(--accent); }
+
+  .foot { margin-top: 64px; padding-top: 26px; border-top: 1px solid var(--hair); color: var(--faint); font-size: 13px; font-family: var(--mono); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  @media (prefers-reduced-motion: no-preference) {
+    .phase, .done-panel, .strip { animation: rise .5s ease both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="mast-top">
+      <div class="brand">
+        <span class="logo">RepDay</span>
+        <span class="kick">Ship Log · v1.0 → App Store</span>
+      </div>
+      <button class="theme-btn" id="tg" aria-label="切换深浅色">◐ 主题</button>
+    </div>
+    <h1>从零到上架：<em>完整</em>路线图</h1>
+    <p class="sub">买 Apple 开发者账号 → 建 App 记录 → 开启 CloudKit → 写"一起锻炼"计数器 → 合规 → 截图 → 提审。按阶段走,美区优先,中国区并行。</p>
+
+    <div class="strip">
+      <div><div class="k">开发者账号</div><div class="v">$99<small> / 年</small></div></div>
+      <div><div class="k">美区上架周期</div><div class="v">~1–2<small> 周</small></div></div>
+      <div><div class="k">中国区额外</div><div class="v">ICP<small> 备案</small></div></div>
+    </div>
+
+    <div class="legend">
+      <span class="tag you dot">你来做</span>
+      <span class="tag claude dot">我来写代码</span>
+      <span class="tag done">✓ 本次已完成</span>
+    </div>
+  </header>
+
+  <section class="done-panel" id="done">
+    <h2>这次对话里已经帮你搞定的</h2>
+    <p class="lead">这些是工程 + 文档,已经落在你项目里的 <code>Submission/</code> 文件夹,退出终端也不会丢。</p>
+    <ul class="done-list">
+      <li><span class="chk">✓</span><div><b>导出合规声明</b> — <code>ITSAppUsesNonExemptEncryption = NO</code> 已写进 Info.plist(实测生效),提审不再反复问加密。</div></li>
+      <li><span class="chk">✓</span><div><b>隐私清单</b> — <code>App/PrivacyInfo.xcprivacy</code> 已打包(无追踪 / 无数据收集 / UserDefaults 自用)。</div></li>
+      <li><span class="chk">✓</span><div><b>隐私政策中英文</b> — <code>Submission/PrivacyPolicy_EN.md</code> + <code>_ZH.md</code>(待你托管成 URL)。</div></li>
+      <li><span class="chk">✓</span><div><b>提审清单</b> — <code>Submission/AppStore_Submission_Checklist.md</code>。</div></li>
+      <li><span class="chk">✓</span><div><b>改为仅 iPhone</b> — 去掉了 iPad 截图这道坎(<code>TARGETED_DEVICE_FAMILY = 1</code>)。</div></li>
+    </ul>
+    <div class="note info" style="margin-top:16px"><span class="lbl">关于 memory</span>你的 memory 是存在磁盘上的文件(<code>~/.claude/…/memory/</code>),<b>退出终端不会消失</b>,下次重开会自动加载。会消失的只是当前对话的上下文。这个网站是给你另一份随时可查的独立备份。</div>
+  </section>
+
+  <!-- Phase 0 -->
+  <section class="phase" id="p0">
+    <div class="phase-head">
+      <span class="phase-num">00</span>
+      <h2 class="phase-title">购买 Apple Developer 账号</h2>
+    </div>
+    <div class="phase-meta"><span class="m"><b>$99</b>/年</span><span class="m">耗时 <b>几分钟 – 48 小时</b></span><span class="tag you">你来做</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">准备前提</div>
+          <p class="body">一个开启了双重认证(2FA)的 Apple ID、一台 Mac、一张可付款的信用卡。</p>
+        </li>
+        <li>
+          <div class="st">选择账号类型:个人(Individual)</div>
+          <p>去 <a href="https://developer.apple.com/programs/enroll/">developer.apple.com/programs/enroll</a> → Enroll。</p>
+          <p class="body">选 <b>Individual / Sole Proprietor</b>——最快,不需要 D-U-N-S 邓白氏编码。Organization(公司)类型免费但要 D-U-N-S,审核要几天,个人开发者不必走。</p>
+        </li>
+        <li>
+          <div class="st">付款并等待激活</div>
+          <p class="body">支付 $99 年费,通常几分钟内激活,最长约 48 小时。收到激活邮件即可。</p>
+        </li>
+      </ol>
+      <div class="note info"><span class="lbl">一个账号,全球发行</span>你<b>不需要</b>为美区和中国区分别开账号。一个开发者账号可以把 App 发行到<b>所有</b> App Store 国家/地区,包括美国和中国大陆。账号注册地 ≠ 能卖的区域。</div>
+    </div>
+  </section>
+
+  <!-- Phase 1 -->
+  <section class="phase" id="p1">
+    <div class="phase-head">
+      <span class="phase-num">01</span>
+      <h2 class="phase-title">在 App Store Connect 建 App 记录</h2>
+    </div>
+    <div class="phase-meta"><span class="m">耗时 <b>~30 分钟</b></span><span class="tag you">你来做</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">签署协议</div>
+          <p class="body">登录 <a href="https://appstoreconnect.apple.com">appstoreconnect.apple.com</a> → Business(协议、税务、银行)→ 签署 <b>Free Applications</b> 免费应用协议。RepDay 免费,<b>不需要</b>填银行/税务(那是收费或内购才要)。</p>
+        </li>
+        <li>
+          <div class="st">注册 App ID</div>
+          <p>Xcode 会在自动签名时帮你注册,或手动去 Certificates, IDs &amp; Profiles 注册 Bundle ID:</p>
+          <div class="cli">com.zhoulinhua0-star.FitnessApp2026New</div>
+        </li>
+        <li>
+          <div class="st">创建 App</div>
+          <p>Apps → + → New App。填:</p>
+          <p class="body">平台 <b>iOS</b> · 名称 <b>RepDay</b> · 主语言 <b>English (U.S.)</b> · Bundle ID 选上面那个 · SKU 随便一个唯一串(如 <code>repday-001</code>)。</p>
+          <div class="note info"><span class="lbl">名称可用性</span>"RepDay" 在 App Store 必须全球唯一。若被占用,ASC 会提示;可加副标题或微调。中文本地化名之后可另填(如 <code>RepDay 健身课表</code>)。</div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Phase 2 -->
+  <section class="phase" id="p2">
+    <div class="phase-head">
+      <span class="phase-num">02</span>
+      <h2 class="phase-title">开启 CloudKit(为"一起锻炼"计数器)</h2>
+    </div>
+    <div class="phase-meta"><span class="m">耗时 <b>~10 分钟</b></span><span class="tag you">你来做</span><span class="m">→ 之后代码我写</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">加 iCloud + CloudKit capability</div>
+          <p>Xcode → 选 <b>FitnessApp</b> target → <b>Signing &amp; Capabilities</b> → 左上 <b>+ Capability</b> → 双击 <b>iCloud</b> → 勾选 <b>CloudKit</b>。</p>
+          <p class="body">这一步需要付费账号已激活(阶段 00),它会自动更新 <code>FitnessApp.entitlements</code>(现在是空的)和描述文件。</p>
+        </li>
+        <li>
+          <div class="st">创建 Container</div>
+          <p class="body">在 CloudKit 面板点 <b>+</b> 新建容器,用默认名即可:</p>
+          <div class="cli">iCloud.com.zhoulinhua0-star.FitnessApp2026New</div>
+        </li>
+        <li>
+          <div class="st">确认容器已就绪</div>
+          <p>去 <a href="https://icloud.developer.apple.com">icloud.developer.apple.com</a>(CloudKit Console),能看到这个容器和它的 <b>Public Database</b> 就对了。记录类型(record type)之后由代码创建,不用手动建。</p>
+        </li>
+      </ol>
+      <div class="note warn"><span class="lbl">最简单方案的一个诚实前提</span>公共数据库<b>读取</b>无需登录 iCloud;但<b>写入</b>(给计数 +1)需要用户设备已登录 iCloud。没登录的用户仍能看到人数,只是不计入自己那一票。对"励志展示型"数字完全够用。另外 CloudKit 无服务端原子自增,高并发下数字可能略微偏小——精确计数才需要真正的服务器(那会牵回备案)。</div>
+    </div>
+  </section>
+
+  <!-- Phase 3 -->
+  <section class="phase" id="p3">
+    <div class="phase-head">
+      <span class="phase-num">03</span>
+      <h2 class="phase-title">写"一起锻炼"计数器代码</h2>
+    </div>
+    <div class="phase-meta"><span class="m">耗时 <b>我来写</b></span><span class="tag claude">我来写代码</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">你开好 CloudKit 后告诉我</div>
+          <p class="body">阶段 02 一完成,回到对话说一声"CloudKit 开好了",代码我全包。</p>
+        </li>
+        <li>
+          <div class="st">我会实现的逻辑</div>
+          <p class="body">首次启动 → 向公共库匿名写一条"成员"记录(本地打标,只 +1 一次);每完成一次训练 → 累计训练次数;界面展示 <b>「已有 N 位训练者加入 · 本周共完成 X 次」</b>。全程无登录、不收集任何个人信息。</p>
+        </li>
+        <li>
+          <div class="st">同步更新隐私说明</div>
+          <p class="body">匿名汇总仍可保持 App Privacy = "Data Not Collected";隐私政策里已经预留了这段说明,无需额外改动。</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Phase 4 -->
+  <section class="phase" id="p4">
+    <div class="phase-head">
+      <span class="phase-num">04</span>
+      <h2 class="phase-title">合规(大部分已完成)</h2>
+    </div>
+    <div class="phase-meta"><span class="m">剩一件 <b>你来做</b></span><span class="tag done">✓ 多数已完成</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">托管隐私政策,拿到 URL <span class="tag you" style="margin-left:6px">你来做</span></div>
+          <p>把 <code>Submission/PrivacyPolicy_EN.md</code> 放到一个公开网址。最省事:GitHub Pages、Notion 公开页,或任意静态托管。把链接填进 ASC → App Privacy → Privacy Policy URL。</p>
+        </li>
+        <li>
+          <div class="st">App Privacy 隐私标签 = Data Not Collected</div>
+          <p class="body">数据全在设备本地、无账号、无第三方 SDK,所以选 <b>"No, we do not collect data from this app."</b> 无需逐项勾选。</p>
+        </li>
+        <li>
+          <div class="st">导出合规 &amp; 隐私清单 <span class="tag done" style="margin-left:6px">✓ 已完成</span></div>
+          <p class="body">加密声明和 <code>PrivacyInfo.xcprivacy</code> 都已经在工程里生效,这两项你不用管了。</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Phase 5 -->
+  <section class="phase" id="p5">
+    <div class="phase-head">
+      <span class="phase-num">05</span>
+      <h2 class="phase-title">截图 &amp; 商品页</h2>
+    </div>
+    <div class="phase-meta"><span class="m">耗时 <b>~1–2 小时</b></span><span class="tag you">你来做</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">截图(现在只需 iPhone)</div>
+          <p>需要两个尺寸各一组:<b>6.9"</b> 和 <b>6.5"</b>。在模拟器上跑对应机型,按 <code>⌘S</code> 保存:</p>
+          <p class="body">6.9" → iPhone 16 Pro Max(1290×2796)· 6.5" → iPhone 11 Pro Max(1242×2688)。每组建议 4–6 张:课表、今日训练、即兴模式、训练日历、模板库。</p>
+        </li>
+        <li>
+          <div class="st">App 图标</div>
+          <p class="body">1024×1024 PNG,<b>不能有</b> alpha 透明通道和圆角(系统自动加圆角)。</p>
+        </li>
+        <li>
+          <div class="st">文案与分类</div>
+          <p class="body">名称、副标题(Subtitle)、关键词(Keywords)、描述(Description)、分类 <b>Health &amp; Fitness</b>、年龄分级问卷(健身内容一般 <b>4+</b>)、Support URL。需要我帮你写英文商品页文案,随时说。</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Phase 6 -->
+  <section class="phase" id="p6">
+    <div class="phase-head">
+      <span class="phase-num">06</span>
+      <h2 class="phase-title">打包、上传、提交审核</h2>
+    </div>
+    <div class="phase-meta"><span class="m">耗时 <b>~30 分钟 + 审核 24–48h</b></span><span class="tag you">你来做</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">每次上传前给 build 号 +1</div>
+          <p class="body"><code>MARKETING_VERSION</code> = 1.0 保持;<code>CURRENT_PROJECT_VERSION</code>(build 号)每次上传都要递增。</p>
+        </li>
+        <li>
+          <div class="st">Archive</div>
+          <p class="body">Xcode 顶部机型选 <b>Any iOS Device (arm64)</b> → 菜单 <b>Product → Archive</b>。</p>
+        </li>
+        <li>
+          <div class="st">上传到 App Store Connect</div>
+          <p class="body">Organizer 窗口 → 选中 archive → <b>Distribute App</b> → App Store Connect → Upload。或用 <b>Transporter</b> App 上传导出的 .ipa。</p>
+        </li>
+        <li>
+          <div class="st">在 ASC 选 build 并提交</div>
+          <p class="body">回到 App 版本页,选中刚上传的 build,补齐商品页/隐私/审核备注 → <b>Add for Review → Submit</b>。审核备注里写清:纯本地健身工具、无账号、日历为可选授权。</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Phase 7 -->
+  <section class="phase" id="p7">
+    <div class="phase-head">
+      <span class="phase-num">07</span>
+      <h2 class="phase-title">中国区:ICP / App 备案(并行,不阻塞美区)</h2>
+    </div>
+    <div class="phase-meta"><span class="m">耗时 <b>~1–3 周</b></span><span class="tag you">你来做</span></div>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <div class="st">认清门槛</div>
+          <p class="body">中国大陆上架现在基本都要 <b>ICP / App 备案</b>,和有没有后端无关。通常需要<b>国内主体 + 国内云服务器/域名</b>,个人备案对 App 类目限制多。</p>
+        </li>
+        <li>
+          <div class="st">找一家备案服务商确认口径</div>
+          <p class="body">规则一直在变。阿里云/腾讯云都有备案代办,先咨询个人 vs 企业备案对健身工具类的当前要求。备案是<b>流程时间</b>,让它在后台跑。</p>
+        </li>
+        <li>
+          <div class="st">计数器的中国区落地</div>
+          <p class="body">CloudKit 在中国区可用性需实测;若备案要求国内服务器,中国区那版计数器可能改用国内云(腾讯云开发 / LeanCloud),或中国区 v1 先不上计数。</p>
+        </li>
+      </ol>
+      <div class="note info"><span class="lbl">推荐节奏</span>美区先上(阶段 00–06),中国区备案(阶段 07)并行推进——别让备案卡住整体上线。</div>
+    </div>
+  </section>
+
+  <p class="foot">RepDay · Ship Log — 生成于本次对话。源文件:Submission/launch-guide.html</p>
+</div>
+
+<script>
+  (function () {
+    var b = document.getElementById('tg');
+    b.addEventListener('click', function () {
+      var cur = document.documentElement.getAttribute('data-theme');
+      if (!cur) cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>

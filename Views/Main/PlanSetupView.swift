@@ -157,6 +157,9 @@ struct PlanSetupView: View {
             WeeklyPlanOverview(overview: weekOverview)
                 .padding(.horizontal, Theme.Spacing.xl)
 
+            templateLibraryLink
+                .padding(.horizontal, Theme.Spacing.xl)
+
             LazyVGrid(columns: columns, spacing: Theme.Spacing.m) {
                 ForEach(sortedDays) { day in
                     NavigationLink(destination: DayDetailEditorView(workoutDay: day)) {
@@ -169,6 +172,28 @@ struct PlanSetupView: View {
 
             Color.clear.frame(height: 80)
         }
+    }
+
+    private var templateLibraryLink: some View {
+        NavigationLink(destination: TemplateLibraryView()) {
+            HStack(spacing: Theme.Spacing.m) {
+                EmojiTile(emoji: "🗂️", tint: Theme.Color.tintBlue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("模板库")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text("建好模板，一键套用到任意一天")
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
+            .tiimoCard()
+        }
+        .buttonStyle(.plain)
     }
 
     private var pageHeader: some View {
@@ -191,13 +216,13 @@ struct PlanSetupView: View {
             HStack(spacing: Theme.Spacing.m) {
                 if isSyncing {
                     ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Theme.Color.ctaLabel))
-                    Text("Syncing...")
+                    Text("同步中...")
                 } else if showSuccessFeedback {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("Synced!")
+                    Text("同步成功！")
                 } else {
                     Image(systemName: "calendar.badge.plus")
-                    Text("Sync to Calendar")
+                    Text("同步到日历")
                 }
             }
             .font(.system(size: 17, weight: .bold))
@@ -208,7 +233,7 @@ struct PlanSetupView: View {
                 if showSuccessFeedback {
                     Capsule()
                         .fill(LinearGradient(
-                            colors: [Color(hex: 0x06B6D4), Color(hex: 0x8B5CF6), Color(hex: 0xEC4899)],
+                            colors: [Color(hex: 0xB91C1C), Color(hex: 0xDC2626), Color(hex: 0xF97066)],
                             startPoint: .leading,
                             endPoint: .trailing
                         ))
@@ -224,6 +249,7 @@ struct PlanSetupView: View {
                     Capsule().fill(Theme.Color.cta)
                 }
             }
+            .shadow(color: Color(hex: 0xDC2626).opacity(showSuccessFeedback ? 0.4 : 0), radius: 16, y: 8)
             .scaleEffect(showSuccessFeedback ? 1.03 : 1.0)
             .animation(.spring(response: 0.45, dampingFraction: 0.65), value: showSuccessFeedback)
         }
@@ -375,7 +401,7 @@ struct PlanDayCard: View {
 struct DayDetailEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var workoutDay: WorkoutDay
-    @Query private var allDays: [WorkoutDay]
+    @Query private var templates: [WorkoutTemplate]
 
     @State private var newExerciseName = ""
     @State private var newSets = 4
@@ -401,11 +427,10 @@ struct DayDetailEditorView: View {
         return max(1, Int((Double(seconds) / 60).rounded()))
     }
 
-    var copyableDays: [WorkoutDay] {
-        let order = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        return allDays
-            .filter { $0.dayName != workoutDay.dayName && !$0.isRestDay && !$0.exercises.isEmpty }
-            .sorted { (order.firstIndex(of: $0.dayName) ?? 0) < (order.firstIndex(of: $1.dayName) ?? 0) }
+    var availableTemplates: [WorkoutTemplate] {
+        templates
+            .filter { !$0.exercises.isEmpty }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     var body: some View {
@@ -535,15 +560,17 @@ struct DayDetailEditorView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Theme.Color.textPrimary)
 
-            if !copyableDays.isEmpty {
+            if !availableTemplates.isEmpty {
                 Menu {
-                    ForEach(copyableDays) { sourceDay in
-                        Button("复制 \(sourceDay.dayName) 的课表") { copyExercises(from: sourceDay) }
+                    ForEach(availableTemplates) { template in
+                        Button("套用「\(template.name)」(\(template.exercises.count) 个动作)") {
+                            copyExercises(from: template)
+                        }
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "doc.on.clipboard")
-                        Text("从其他日期复制课表")
+                        Image(systemName: "square.stack.3d.up.fill")
+                        Text("从模板库套用课表")
                     }
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Theme.Color.accent)
@@ -551,8 +578,24 @@ struct DayDetailEditorView: View {
                     .padding(.vertical, Theme.Spacing.s)
                     .background(Theme.Color.accentSoft, in: Capsule())
                 }
+
+                Text("或在下方手动添加动作")
+                    .font(.caption)
+                    .foregroundStyle(Theme.Color.textSecondary)
             } else {
-                Text("在下方添加你的第一个动作")
+                NavigationLink(destination: TemplateLibraryView()) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.square.on.square")
+                        Text("去模板库创建模板")
+                    }
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.Color.accent)
+                    .padding(.horizontal, Theme.Spacing.l)
+                    .padding(.vertical, Theme.Spacing.s)
+                    .background(Theme.Color.accentSoft, in: Capsule())
+                }
+
+                Text("或在下方手动添加你的第一个动作")
                     .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
             }
@@ -653,11 +696,12 @@ struct DayDetailEditorView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
-    private func copyExercises(from sourceDay: WorkoutDay) {
-        let sorted = sourceDay.exercises.sorted(by: { $0.order < $1.order })
+    private func copyExercises(from template: WorkoutTemplate) {
+        let sorted = template.exercises.sorted(by: { $0.order < $1.order })
+        let base = workoutDay.exercises.count
         withAnimation {
             for (index, ex) in sorted.enumerated() {
-                workoutDay.exercises.append(Exercise(name: ex.name, sets: ex.sets, reps: ex.reps, order: index))
+                workoutDay.exercises.append(Exercise(name: ex.name, sets: ex.sets, reps: ex.reps, order: base + index))
             }
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)

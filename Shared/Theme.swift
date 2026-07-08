@@ -24,34 +24,38 @@ enum Theme {
 
     // MARK: Colors (light / dark adaptive)
     enum Color {
-        /// App background — soft lavender-white in light, deep ink in dark.
-        static let background = SwiftUI.Color.dynamic(light: 0xF4F1FB, dark: 0x14121C)
-        /// Card / sheet surface.
-        static let surface = SwiftUI.Color.dynamic(light: 0xFFFFFF, dark: 0x1F1C29)
+        /// App background — crisp neutral near-white in light, true black in dark.
+        /// Deliberately colorless so cards + the lavender accent read as sharp,
+        /// gym-grade contrast rather than a soft pastel wash.
+        static let background = SwiftUI.Color.dynamic(light: 0xF4F3F1, dark: 0x000000)
+        /// Card / sheet surface — pure white on the neutral canvas so cards lift.
+        static let surface = SwiftUI.Color.dynamic(light: 0xFFFFFF, dark: 0x1C1A19)
         /// Slightly recessed surface (inner rows, empty slots).
-        static let surfaceMuted = SwiftUI.Color.dynamic(light: 0xF0ECF9, dark: 0x2A2636)
+        static let surfaceMuted = SwiftUI.Color.dynamic(light: 0xEEEDEB, dark: 0x2A2725)
 
-        /// Primary brand accent — the Tiimo lavender.
-        static let accent = SwiftUI.Color.dynamic(light: 0x8B7BF0, dark: 0xA99BF6)
+        /// Primary brand accent — deep blood-red (Crimson) for a hard, gym-grade look.
+        static let accent = SwiftUI.Color.dynamic(light: 0xDC2626, dark: 0xF04444)
         /// Accent used as a soft fill behind icons / progress tracks.
-        static let accentSoft = SwiftUI.Color.dynamic(light: 0xEAE5FB, dark: 0x342E4A)
+        static let accentSoft = SwiftUI.Color.dynamic(light: 0xFBE0E0, dark: 0x3A2020)
 
-        static let textPrimary = SwiftUI.Color.dynamic(light: 0x1B1726, dark: 0xF2EFFA)
-        static let textSecondary = SwiftUI.Color.dynamic(light: 0x6E6880, dark: 0xA39CB5)
+        // Warm-neutral ink/paper — a whisper of red under the "black" & "white"
+        // so text shares the crimson accent's temperature (no leftover violet).
+        static let textPrimary = SwiftUI.Color.dynamic(light: 0x1C1917, dark: 0xF7F4F2)
+        static let textSecondary = SwiftUI.Color.dynamic(light: 0x77706B, dark: 0xA8A29C)
 
-        /// High-contrast pill button (Tiimo's black CTA) — inverts in dark.
-        static let cta = SwiftUI.Color.dynamic(light: 0x171320, dark: 0xF2EFFA)
-        static let ctaLabel = SwiftUI.Color.dynamic(light: 0xFFFFFF, dark: 0x171320)
+        /// High-contrast pill button (warm near-black CTA) — inverts in dark.
+        static let cta = SwiftUI.Color.dynamic(light: 0x1C1917, dark: 0xF7F4F2)
+        static let ctaLabel = SwiftUI.Color.dynamic(light: 0xFFFFFF, dark: 0x1C1917)
 
         // Pastel section tints (Tiimo's time-of-day pills, reused for grouping).
         static let tintPeach  = SwiftUI.Color.dynamic(light: 0xFBE7DA, dark: 0x3A2E28)
         static let tintBlue   = SwiftUI.Color.dynamic(light: 0xE2ECFB, dark: 0x232C3D)
         static let tintMint   = SwiftUI.Color.dynamic(light: 0xDFF3EA, dark: 0x213429)
-        static let tintPurple = SwiftUI.Color.dynamic(light: 0xEDE5FB, dark: 0x2D2840)
+        static let tintPurple = SwiftUI.Color.dynamic(light: 0xFBE0E3, dark: 0x3A2126)
         static let tintOrange = SwiftUI.Color.dynamic(light: 0xFBEADA, dark: 0x3A2C21)
 
         static let success = SwiftUI.Color.dynamic(light: 0x4CAF82, dark: 0x6FD3A6)
-        static let hairline = SwiftUI.Color.dynamic(light: 0xE7E2F2, dark: 0x322D40)
+        static let hairline = SwiftUI.Color.dynamic(light: 0xE5E3E0, dark: 0x33302D)
     }
 
     // MARK: Spacing

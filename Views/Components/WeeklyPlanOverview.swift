@@ -8,6 +8,8 @@ import SwiftUI
 struct WeeklyPlanOverview: View {
     let overview: WeekPlanSummary.Overview
 
+    @State private var showCalendar = false
+
     private var summaryLine: String {
         "\(overview.trainingDays) 练 · \(overview.restDays) 休 · 共 \(overview.totalSets) 组"
     }
@@ -19,20 +21,40 @@ struct WeeklyPlanOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.l) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text(summaryLine)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Theme.Color.textPrimary)
-                if let heaviestLine {
-                    Text(heaviestLine)
-                        .font(.caption)
-                        .foregroundStyle(Theme.Color.textSecondary)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text(summaryLine)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    if let heaviestLine {
+                        Text(heaviestLine)
+                            .font(.caption)
+                            .foregroundStyle(Theme.Color.textSecondary)
+                    }
                 }
+
+                Spacer()
+
+                Button {
+                    showCalendar = true
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.Color.textSecondary)
+                        .frame(width: 34, height: 34)
+                        .background(Theme.Color.surfaceMuted, in: Circle())
+                }
+                .buttonStyle(.plain)
             }
 
             weekStrip
         }
         .tiimoCard()
+        .sheet(isPresented: $showCalendar) {
+            WorkoutCalendarView()
+                .presentationDragIndicator(.hidden)
+        }
     }
 
     private var weekStrip: some View {

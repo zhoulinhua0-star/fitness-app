@@ -65,14 +65,19 @@ struct ImprovEntry: Identifiable {
     var reps: Int
     var completedSets: Int
     let groupTint: Color
+    /// True when the user typed this lift by hand rather than picking it from
+    /// the library — used to render it in the dedicated "自定义动作" list.
+    let isCustom: Bool
 
-    init(name: String, sets: Int = 3, reps: Int = 10, groupTint: Color = Theme.Color.accentSoft) {
+    init(name: String, sets: Int = 3, reps: Int = 10,
+         groupTint: Color = Theme.Color.accentSoft, isCustom: Bool = false) {
         self.id = UUID()
         self.name = name
         self.sets = sets
         self.reps = reps
         self.completedSets = 0
         self.groupTint = groupTint
+        self.isCustom = isCustom
     }
 
     var isFullyDone: Bool { completedSets >= sets }

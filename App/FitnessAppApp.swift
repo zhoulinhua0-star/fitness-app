@@ -12,6 +12,7 @@ struct FitnessAppApp: App {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: [WorkoutDay.self, Exercise.self, WorkoutSession.self, SetLog.self])
+        .modelContainer(for: [WorkoutDay.self, Exercise.self, WorkoutSession.self, SetLog.self,
+                              WorkoutTemplate.self, TemplateExercise.self])
     }
 }

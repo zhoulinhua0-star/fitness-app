@@ -176,11 +176,18 @@ struct ImprovModeView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var selectedGroups: Set<MuscleGroupData> = []
     @State private var sessionExercises: [ImprovEntry] = []
+    @State private var customName = ""
+    @FocusState private var customFieldFocused: Bool
 
     // Staggered entrance animation triggers
     @State private var mascotAppeared = false
     @State private var questionAppeared = false
     @State private var chipsAppeared = false
+
+    /// Hand-typed lifts, shown in their own list under the recommendations.
+    private var customEntries: [ImprovEntry] {
+        sessionExercises.filter { $0.isCustom }
+    }
 
     private var suggestedExercises: [(group: MuscleGroupData, name: String)] {
         ExerciseLibrary.groups
@@ -212,6 +219,52 @@ struct ImprovModeView: View {
                 }
             }
         )
+    }
+
+    private func setsBinding(id: UUID) -> Binding<Int> {
+        Binding(
+            get: { sessionExercises.first(where: { $0.id == id })?.sets ?? 3 },
+            set: { newValue in
+                if let idx = sessionExercises.firstIndex(where: { $0.id == id }) {
+                    sessionExercises[idx].sets = newValue
+                }
+            }
+        )
+    }
+
+    private func repsBinding(id: UUID) -> Binding<Int> {
+        Binding(
+            get: { sessionExercises.first(where: { $0.id == id })?.reps ?? 10 },
+            set: { newValue in
+                if let idx = sessionExercises.firstIndex(where: { $0.id == id }) {
+                    sessionExercises[idx].reps = newValue
+                }
+            }
+        )
+    }
+
+    private func addCustomExercise() {
+        let trimmed = customName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        // Skip if this lift is already staged (either custom or from the library).
+        guard !sessionExercises.contains(where: { $0.name == trimmed }) else {
+            customName = ""
+            return
+        }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            sessionExercises.append(
+                ImprovEntry(name: trimmed, groupTint: Theme.Color.accentSoft, isCustom: true)
+            )
+        }
+        customName = ""
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func removeEntry(_ entry: ImprovEntry) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            sessionExercises.removeAll { $0.id == entry.id }
+        }
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
 
     private func toggle(_ name: String, group: MuscleGroupData) {
@@ -314,11 +367,15 @@ struct ImprovModeView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
 
+                    // ── Custom exercises (hand-typed) ──────────────────
+                    customSection
+
                     Color.clear.frame(height: sessionExercises.isEmpty ? 0 : 100)
                 }
                 .padding(.horizontal, Theme.Spacing.xl)
                 .padding(.bottom, Theme.Spacing.xxl)
             }
+            .scrollDismissesKeyboard(.interactively)
 
             // ── Floating start bar ─────────────────────────────────────
             if !sessionExercises.isEmpty {
@@ -360,6 +417,96 @@ struct ImprovModeView: View {
         sessionExercises = []
         selectedGroups = []
         onStartWorkout()
+    }
+
+    // MARK: Custom exercises
+
+    private var customSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
+            SectionPill(
+                title: "自定义动作",
+                count: customEntries.isEmpty ? nil : customEntries.count,
+                systemImage: "square.and.pencil",
+                tint: Theme.Color.tintBlue
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: Theme.Spacing.s) {
+                // Input row
+                HStack(spacing: Theme.Spacing.s) {
+                    TextField(
+                        "",
+                        text: $customName,
+                        prompt: Text("输入动作名称，如「农夫行走」")
+                            .foregroundColor(Theme.Color.textSecondary)
+                    )
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.Color.textPrimary)
+                    .focused($customFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit(addCustomExercise)
+                    .padding(.horizontal, Theme.Spacing.m)
+                    .padding(.vertical, 13)
+                    .background(
+                        Theme.Color.surfaceMuted,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                    )
+
+                    Button(action: addCustomExercise) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(Theme.Color.ctaLabel)
+                            .frame(width: 48, height: 48)
+                            .background(
+                                Theme.Color.cta,
+                                in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(customName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(customName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+                }
+
+                ForEach(customEntries) { entry in
+                    customEntryRow(entry)
+                        .transition(.scale(scale: 0.96).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    private func customEntryRow(_ entry: ImprovEntry) -> some View {
+        VStack(spacing: Theme.Spacing.m) {
+            HStack(spacing: Theme.Spacing.m) {
+                EmojiTile(emoji: ExerciseEmoji.forName(entry.name), tint: entry.groupTint, size: 44)
+
+                Text(entry.name)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Color.textPrimary)
+
+                Spacer()
+
+                Button { removeEntry(entry) } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: Theme.Spacing.xl) {
+                ThemedStepper(title: "组数", value: setsBinding(id: entry.id), range: 1...20)
+                ThemedStepper(title: "次数", value: repsBinding(id: entry.id), range: 1...100)
+                Spacer()
+            }
+        }
+        .padding(Theme.Spacing.m)
+        .background(Theme.Color.tintMint)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                .stroke(Theme.Color.success.opacity(0.4), lineWidth: 1)
+        )
     }
 
     // MARK: Floating start bar
