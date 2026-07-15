@@ -420,9 +420,9 @@ struct DayDetailEditorView: View {
 
     /// Rough session estimate: each set ≈ working time (reps×3s) + one rest.
     private var estimatedMinutes: Int {
-        let rest = AppSettings.shared.defaultRestSeconds
         let seconds = workoutDay.exercises.reduce(0) { acc, ex in
-            acc + ex.sets * (ex.reps * 3 + rest)
+            let restSeconds = ex.restSeconds ?? AppSettings.shared.defaultRestSeconds
+            return acc + ex.sets * (ex.reps * 3 + restSeconds)
         }
         return max(1, Int((Double(seconds) / 60).rounded()))
     }
@@ -760,8 +760,36 @@ struct ExerciseEditorCard: View {
                         .foregroundStyle(Theme.Color.accent)
                 }
             }
+
+            Menu {
+                Button("使用全局默认（\(formattedRest(AppSettings.shared.defaultRestSeconds))）") {
+                    exercise.restSeconds = nil
+                }
+                Divider()
+                ForEach([30, 60, 90, 120, 180], id: \.self) { seconds in
+                    Button(formattedRest(seconds)) {
+                        exercise.restSeconds = seconds
+                    }
+                }
+            } label: {
+                HStack {
+                    Label("动作休息时长", systemImage: "timer")
+                    Spacer()
+                    Text(formattedRest(exercise.restSeconds ?? AppSettings.shared.defaultRestSeconds))
+                        .monospacedDigit()
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.Color.textPrimary)
+                .frame(minHeight: 44)
+            }
         }
         .tiimoCard()
+    }
+
+    private func formattedRest(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
 

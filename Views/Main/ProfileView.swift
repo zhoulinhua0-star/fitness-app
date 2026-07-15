@@ -12,6 +12,8 @@ import SwiftData
 struct ProfileView: View {
     @State private var settings = AppSettings.shared
     @State private var notificationStatusMessage: String?
+    @State private var copiedEmail: String?
+    @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \WorkoutSession.sessionDate, order: .reverse) private var sessions: [WorkoutSession]
 
@@ -25,12 +27,20 @@ struct ProfileView: View {
                     heroCard
                     settingsSection
                     aboutSection
+                    feedbackSection
                 }
                 .padding(.top, Theme.Spacing.s)
                 .padding(.bottom, Theme.Spacing.xxl)
             }
             .background(Theme.Color.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
+            .alert("邮箱已复制", isPresented: copiedEmailAlertBinding) {
+                Button("好", role: .cancel) { }
+            } message: {
+                if let copiedEmail {
+                    Text("\(copiedEmail) 已复制到剪贴板")
+                }
+            }
         }
     }
 
@@ -223,6 +233,152 @@ struct ProfileView: View {
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .padding(Theme.Spacing.l)
+    }
+
+    // MARK: Feedback section
+
+    private var feedbackSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.m) {
+            SectionPill(title: "建议与反馈", systemImage: "envelope.fill", tint: Theme.Color.tintMint)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("有建议或发现问题？欢迎直接联系我。")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text("Suggestions and feedback are always welcome.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(Theme.Spacing.l)
+
+                Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
+
+                feedbackEmailRow(
+                    audience: "中国用户",
+                    address: "lincolnzlh@163.com",
+                    language: .chinese
+                )
+
+                Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
+
+                feedbackEmailRow(
+                    audience: "International users",
+                    address: "zhoulinhua0@gmail.com",
+                    language: .english
+                )
+            }
+            .background(Theme.Color.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .stroke(Theme.Color.hairline, lineWidth: 1)
+            )
+            .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
+        }
+        .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    private enum FeedbackLanguage {
+        case chinese, english
+    }
+
+    private func feedbackEmailRow(
+        audience: String,
+        address: String,
+        language: FeedbackLanguage
+    ) -> some View {
+        Button {
+            openFeedbackEmail(address: address, language: language)
+        } label: {
+            HStack(spacing: Theme.Spacing.m) {
+                Image(systemName: "envelope")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Color.accent)
+                    .frame(width: 36, height: 36)
+                    .background(Theme.Color.accentSoft, in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(audience)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text(address)
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
+
+                Spacer(minLength: Theme.Spacing.s)
+
+                Image(systemName: "arrow.up.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
+            .padding(.horizontal, Theme.Spacing.l)
+            .frame(minHeight: 64)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("给开发者发送邮件，\(address)")
+        .accessibilityHint("打开系统邮件 App")
+        .contextMenu {
+            Button {
+                copyEmail(address)
+            } label: {
+                Label("复制邮箱", systemImage: "doc.on.doc")
+            }
+        }
+    }
+
+    private func openFeedbackEmail(address: String, language: FeedbackLanguage) {
+        guard let url = feedbackEmailURL(address: address, language: language) else {
+            copyEmail(address)
+            return
+        }
+
+        openURL(url) { accepted in
+            guard !accepted else { return }
+            Task { @MainActor in
+                copyEmail(address)
+            }
+        }
+    }
+
+    private func feedbackEmailURL(address: String, language: FeedbackLanguage) -> URL? {
+        let subject: String
+        let body: String
+
+        switch language {
+        case .chinese:
+            subject = "RepDay 使用建议"
+            body = "你好，\n\n我想反馈：\n\n\nApp 版本：1.1.0"
+        case .english:
+            subject = "RepDay Feedback"
+            body = "Hi Lincoln,\n\nI’d like to share the following feedback:\n\n\nApp version: 1.1.0"
+        }
+
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = address
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        return components.url
+    }
+
+    private func copyEmail(_ address: String) {
+        UIPasteboard.general.string = address
+        copiedEmail = address
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private var copiedEmailAlertBinding: Binding<Bool> {
+        Binding(
+            get: { copiedEmail != nil },
+            set: { if !$0 { copiedEmail = nil } }
+        )
     }
 
     // MARK: Reminder time binding

@@ -7,6 +7,8 @@ final class Exercise {
     var sets: Int
     var reps: Int
     var order: Int
+    /// Per-exercise rest duration. Nil falls back to the app-wide default.
+    var restSeconds: Int?
     var lastCompletedDate: Date?
     var sessionDate: Date?
     var completedSetCount: Int
@@ -19,6 +21,7 @@ final class Exercise {
         sets: Int,
         reps: Int,
         order: Int = 0,
+        restSeconds: Int? = nil,
         lastCompletedDate: Date? = nil,
         sessionDate: Date? = nil,
         completedSetCount: Int = 0,
@@ -28,6 +31,7 @@ final class Exercise {
         self.sets = sets
         self.reps = reps
         self.order = order
+        self.restSeconds = restSeconds
         self.lastCompletedDate = lastCompletedDate
         self.sessionDate = sessionDate
         self.completedSetCount = completedSetCount

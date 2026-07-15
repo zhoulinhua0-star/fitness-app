@@ -13,11 +13,19 @@ struct ExpandableExerciseRow: View {
     @State private var showRestTimer = false
     @State private var restTimerToken = UUID()
     @State private var restTimerEndDate: Date = .now
+    @State private var todayRestSeconds: Int?
+    @State private var showRestDurationPicker = false
 
     private static let restTimerEndDateKey = "restTimerEndDate"
     private static let restTimerExerciseNameKey = "restTimerExerciseName"
+    private static let restOverrideDayKey = "restOverrideDay"
+    private static let restOverridesKey = "restOverrides"
     
     private var settings: AppSettings { AppSettings.shared }
+
+    private var effectiveRestSeconds: Int {
+        todayRestSeconds ?? exercise.restSeconds ?? settings.defaultRestSeconds
+    }
     
     private var setRowIDs: [ExerciseSetRowID] {
         guard exercise.sets > 0 else { return [] }
@@ -75,7 +83,10 @@ struct ExpandableExerciseRow: View {
         .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
         .animation(Self.expandSpring, value: isExpanded)
         .sensoryFeedback(.selection, trigger: isExpanded)
-        .onAppear { restoreRestTimerIfNeeded() }
+        .onAppear {
+            todayRestSeconds = loadTodayRestOverride()
+            restoreRestTimerIfNeeded()
+        }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active { restoreRestTimerIfNeeded() }
         }
@@ -115,6 +126,36 @@ struct ExpandableExerciseRow: View {
     private var setPanel: some View {
         VStack(spacing: 8) {
             Divider()
+
+            Button {
+                showRestDurationPicker = true
+            } label: {
+                HStack {
+                    Label("休息时长", systemImage: "timer")
+                    Spacer()
+                    Text(formattedDuration(effectiveRestSeconds))
+                        .monospacedDigit()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.Color.textPrimary)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(Theme.Color.surfaceMuted, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("调整此动作的休息时长")
+            .sheet(isPresented: $showRestDurationPicker) {
+                RestDurationPickerSheet(
+                    initialSeconds: effectiveRestSeconds,
+                    canSaveToPlan: !exercise.isImprov,
+                    onUseToday: { saveTodayRestOverride($0) },
+                    onSaveToPlan: { saveRestDurationToPlan($0) }
+                )
+                .presentationDetents([.height(390)])
+                .presentationDragIndicator(.visible)
+            }
             
             ForEach(setRowIDs, id: \.self) { rowID in
                 setRow(setNumber: rowID.setNumber)
@@ -123,9 +164,10 @@ struct ExpandableExerciseRow: View {
             
             if showRestTimer && !isFullyCompleted {
                 RestTimerView(
-                    endDate: restTimerEndDate,
+                    endDate: $restTimerEndDate,
                     onSkip: { cancelRestTimer() },
-                    onComplete: { cancelRestTimer() }
+                    onComplete: { cancelRestTimer() },
+                    onEndDateChanged: { updateRestTimerEndDate($0) }
                 )
                 .id(restTimerToken)
             }
@@ -233,9 +275,10 @@ struct ExpandableExerciseRow: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             cancelRestTimer()
         } else if !exercise.isFullyCompletedToday {
-            let endDate = Date().addingTimeInterval(TimeInterval(settings.defaultRestSeconds))
+            let restSeconds = effectiveRestSeconds
+            let endDate = Date().addingTimeInterval(TimeInterval(restSeconds))
             NotificationManager.scheduleRestEndNotification(
-                after: settings.defaultRestSeconds,
+                after: restSeconds,
                 exerciseName: exercise.name
             )
             restTimerEndDate = endDate
@@ -254,6 +297,60 @@ struct ExpandableExerciseRow: View {
     private func persistRestTimer(endDate: Date) {
         UserDefaults.standard.set(endDate.timeIntervalSince1970, forKey: Self.restTimerEndDateKey)
         UserDefaults.standard.set(exercise.name, forKey: Self.restTimerExerciseNameKey)
+    }
+
+    private func updateRestTimerEndDate(_ endDate: Date) {
+        restTimerEndDate = endDate
+        persistRestTimer(endDate: endDate)
+        let remaining = max(1, Int(endDate.timeIntervalSinceNow.rounded(.up)))
+        NotificationManager.scheduleRestEndNotification(after: remaining, exerciseName: exercise.name)
+    }
+
+    private var restOverrideID: String {
+        "\(exercise.order)#\(exercise.name)"
+    }
+
+    private func loadTodayRestOverride() -> Int? {
+        let defaults = UserDefaults.standard
+        let todayStamp = Calendar.current.startOfDay(for: .now).timeIntervalSince1970
+        guard defaults.double(forKey: Self.restOverrideDayKey) == todayStamp else {
+            defaults.set(todayStamp, forKey: Self.restOverrideDayKey)
+            defaults.removeObject(forKey: Self.restOverridesKey)
+            return nil
+        }
+        return defaults.dictionary(forKey: Self.restOverridesKey)?[restOverrideID] as? Int
+    }
+
+    private func saveTodayRestOverride(_ seconds: Int) {
+        let defaults = UserDefaults.standard
+        let todayStamp = Calendar.current.startOfDay(for: .now).timeIntervalSince1970
+        var overrides = defaults.dictionary(forKey: Self.restOverridesKey) ?? [:]
+        overrides[restOverrideID] = seconds
+        defaults.set(todayStamp, forKey: Self.restOverrideDayKey)
+        defaults.set(overrides, forKey: Self.restOverridesKey)
+        todayRestSeconds = seconds
+        showRestDurationPicker = false
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func saveRestDurationToPlan(_ seconds: Int) {
+        exercise.restSeconds = seconds
+        removeTodayRestOverride()
+        try? modelContext.save()
+        showRestDurationPicker = false
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func removeTodayRestOverride() {
+        let defaults = UserDefaults.standard
+        var overrides = defaults.dictionary(forKey: Self.restOverridesKey) ?? [:]
+        overrides.removeValue(forKey: restOverrideID)
+        defaults.set(overrides, forKey: Self.restOverridesKey)
+        todayRestSeconds = nil
+    }
+
+    private func formattedDuration(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 
     private func clearPersistedRestTimer() {
@@ -341,4 +438,87 @@ struct ExpandableExerciseRow: View {
 private struct ExerciseSetRowID: Hashable {
     let exerciseID: PersistentIdentifier
     let setNumber: Int
+}
+
+private struct RestDurationPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let canSaveToPlan: Bool
+    let onUseToday: (Int) -> Void
+    let onSaveToPlan: (Int) -> Void
+
+    @State private var selectedSeconds: Int
+
+    private let presets = [30, 60, 90, 120, 180]
+
+    init(
+        initialSeconds: Int,
+        canSaveToPlan: Bool,
+        onUseToday: @escaping (Int) -> Void,
+        onSaveToPlan: @escaping (Int) -> Void
+    ) {
+        self.canSaveToPlan = canSaveToPlan
+        self.onUseToday = onUseToday
+        self.onSaveToPlan = onSaveToPlan
+        _selectedSeconds = State(initialValue: initialSeconds)
+    }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.l) {
+            Text("设置休息时长")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(Theme.Color.textPrimary)
+
+            Text(formattedDuration(selectedSeconds))
+                .font(.system(size: 42, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(Theme.Color.accent)
+
+            HStack(spacing: Theme.Spacing.s) {
+                ForEach(presets, id: \.self) { seconds in
+                    Button(shortDuration(seconds)) {
+                        selectedSeconds = seconds
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(selectedSeconds == seconds ? Color.white : Theme.Color.textSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(
+                        selectedSeconds == seconds ? Theme.Color.accent : Theme.Color.surfaceMuted,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                }
+            }
+
+            Stepper("每次调整 15 秒", value: $selectedSeconds, in: 30...300, step: 15)
+                .font(.subheadline)
+
+            VStack(spacing: Theme.Spacing.s) {
+                Button("仅本次训练") {
+                    onUseToday(selectedSeconds)
+                    dismiss()
+                }
+                .buttonStyle(.primaryCTA)
+
+                if canSaveToPlan {
+                    Button("保存到训练计划") {
+                        onSaveToPlan(selectedSeconds)
+                        dismiss()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Theme.Color.accent)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+            }
+        }
+        .padding(Theme.Spacing.xl)
+        .background(Theme.Color.background.ignoresSafeArea())
+    }
+
+    private func formattedDuration(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private func shortDuration(_ seconds: Int) -> String {
+        seconds < 60 ? "\(seconds)秒" : "\(seconds / 60)分"
+    }
 }

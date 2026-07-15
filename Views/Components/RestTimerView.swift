@@ -8,18 +8,13 @@ import SwiftUI
 struct RestTimerView: View {
     enum Phase { case running, finished }
 
+    @Binding var endDate: Date
     let onSkip: () -> Void
     let onComplete: () -> Void
+    let onEndDateChanged: (Date) -> Void
 
-    @State private var endDate: Date
     @State private var phase: Phase = .running
     @State private var didFireCompletionHaptic = false
-
-    init(endDate: Date, onSkip: @escaping () -> Void, onComplete: @escaping () -> Void) {
-        self.onSkip = onSkip
-        self.onComplete = onComplete
-        _endDate = State(initialValue: endDate)
-    }
 
     var body: some View {
         Group {
@@ -34,22 +29,31 @@ struct RestTimerView: View {
     private var runningView: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = max(0, endDate.timeIntervalSince(context.date))
-            HStack {
-                Image(systemName: "timer")
-                    .foregroundStyle(Theme.Color.accent)
-                Text("休息 \(formattedTime(remaining))")
+            VStack(spacing: Theme.Spacing.s) {
+                HStack {
+                    Image(systemName: "timer")
+                        .foregroundStyle(Theme.Color.accent)
+                    Text("休息 \(formattedTime(remaining))")
+                        .font(.system(size: 14, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Spacer()
+                    Button("跳过") {
+                        NotificationManager.cancelRestEndNotification()
+                        onSkip()
+                    }
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.Color.textPrimary)
-                Spacer()
-                Button("跳过") {
-                    NotificationManager.cancelRestEndNotification()
-                    onSkip()
+                    .foregroundStyle(Theme.Color.accent)
+                    .frame(minWidth: 44, minHeight: 44)
                 }
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.Color.accent)
+
+                HStack(spacing: Theme.Spacing.s) {
+                    adjustmentButton(title: "−15 秒", delta: -15)
+                    adjustmentButton(title: "+15 秒", delta: 15)
+                }
             }
             .padding(.horizontal, Theme.Spacing.m)
-            .padding(.vertical, Theme.Spacing.s + 2)
+            .padding(.vertical, Theme.Spacing.s)
             .background(Theme.Color.accentSoft)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
             .onChange(of: remaining) { _, newValue in
@@ -57,6 +61,20 @@ struct RestTimerView: View {
                 handleRestFinished()
             }
         }
+    }
+
+    private func adjustmentButton(title: String, delta: TimeInterval) -> some View {
+        Button(title) {
+            let adjustedEndDate = max(endDate.addingTimeInterval(delta), Date().addingTimeInterval(1))
+            endDate = adjustedEndDate
+            onEndDateChanged(adjustedEndDate)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(Theme.Color.accent)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .background(Theme.Color.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .accessibilityLabel("休息计时\(title)")
     }
 
     private var finishedView: some View {
