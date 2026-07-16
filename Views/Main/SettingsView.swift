@@ -58,7 +58,7 @@ struct SettingsView: View {
                     HStack {
                         Text("版本")
                         Spacer()
-                        Text("1.1.0")
+                        Text(appVersion)
                             .foregroundColor(.secondary)
                     }
                     Text("100% 本地存储，数据保存在你的设备上。")
@@ -84,6 +84,10 @@ struct SettingsView: View {
                 settings.reminderMinute = components.minute ?? 0
             }
         )
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 }
 

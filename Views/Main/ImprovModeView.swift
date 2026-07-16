@@ -261,7 +261,7 @@ struct ImprovModeView: View {
     }
 
     private func removeEntry(_ entry: ImprovEntry) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+        _ = withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             sessionExercises.removeAll { $0.id == entry.id }
         }
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()

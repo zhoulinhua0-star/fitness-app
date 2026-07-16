@@ -212,7 +212,6 @@ enum WorkoutHistoryManager {
         workoutDays: [WorkoutDay]
     ) -> [(dayName: String, plannedSets: Int, completedSets: Int)] {
         let dayOrder = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-        let calendar = Calendar.current
         let todayStart = startOfDay()
         
         return dayOrder.map { dayName in

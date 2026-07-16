@@ -16,6 +16,8 @@ struct TemplateLibraryView: View {
 
     @State private var showingNameSheet = false
     @State private var newTemplateName = ""
+    @State private var createdTemplate: WorkoutTemplate?
+    @State private var showingCreatedTemplateEditor = false
 
     private var sortedTemplates: [WorkoutTemplate] {
         templates.sorted { $0.createdAt < $1.createdAt }
@@ -54,11 +56,16 @@ struct TemplateLibraryView: View {
         .background(Theme.Color.background.ignoresSafeArea())
         .navigationTitle("模板库")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingNameSheet) {
-            TemplateNameSheet(name: $newTemplateName) { finalName in
+        .sheet(isPresented: $showingNameSheet, onDismiss: openCreatedTemplate) {
+            TemplateNameSheet(name: $newTemplateName, actionTitle: "创建并编辑") { finalName in
                 createTemplate(named: finalName)
             }
             .presentationDetents([.height(220)])
+        }
+        .navigationDestination(isPresented: $showingCreatedTemplateEditor) {
+            if let createdTemplate {
+                TemplateEditorView(template: createdTemplate, automaticallyFocusComposer: true)
+            }
         }
     }
 
@@ -99,15 +106,23 @@ struct TemplateLibraryView: View {
 
     private func presentNameSheet() {
         newTemplateName = ""
+        createdTemplate = nil
         showingNameSheet = true
     }
 
     private func createTemplate(named rawName: String) {
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
-        modelContext.insert(WorkoutTemplate(name: name))
+        let template = WorkoutTemplate(name: name)
+        modelContext.insert(template)
         try? modelContext.save()
+        createdTemplate = template
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func openCreatedTemplate() {
+        guard createdTemplate != nil else { return }
+        showingCreatedTemplateEditor = true
     }
 }
 
@@ -157,6 +172,7 @@ struct TemplateCard: View {
 struct TemplateNameSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var name: String
+    var actionTitle = "保存"
     var onCommit: (String) -> Void
     @FocusState private var focused: Bool
 
@@ -176,7 +192,7 @@ struct TemplateNameSheet: View {
                 .themedField()
 
             Button(action: commit) {
-                Text("保存")
+                Text(actionTitle)
             }
             .buttonStyle(.primaryCTA)
             .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -202,12 +218,14 @@ struct TemplateEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var template: WorkoutTemplate
+    var automaticallyFocusComposer = false
 
     @State private var newExerciseName = ""
     @State private var newSets = 4
     @State private var newReps = 12
     @State private var showingRenameSheet = false
     @State private var renameText = ""
+    @State private var didAutomaticallyFocusComposer = false
     @FocusState private var nameFieldFocused: Bool
 
     private let quickPicks = ["卧推", "深蹲", "硬拉", "引体向上", "肩上推举", "杠铃划船", "二头弯举", "平板支撑"]
@@ -234,6 +252,11 @@ struct TemplateEditorView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(template.name)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            guard automaticallyFocusComposer, !didAutomaticallyFocusComposer else { return }
+            didAutomaticallyFocusComposer = true
+            nameFieldFocused = true
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {

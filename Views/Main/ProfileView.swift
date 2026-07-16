@@ -198,7 +198,21 @@ struct ProfileView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(spacing: 0) {
-                aboutRow(label: "版本", value: "1.1.0")
+                aboutRow(label: "版本", value: appVersion)
+                Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
+                NavigationLink(destination: PrivacyPolicyView()) {
+                    HStack {
+                        Text("隐私政策 / Privacy Policy")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Theme.Color.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.Color.textSecondary)
+                    }
+                    .padding(Theme.Spacing.l)
+                }
+                .buttonStyle(.plain)
                 Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("🔒 完全本地存储")
@@ -352,10 +366,10 @@ struct ProfileView: View {
         switch language {
         case .chinese:
             subject = "RepDay 使用建议"
-            body = "你好，\n\n我想反馈：\n\n\nApp 版本：1.1.0"
+            body = "你好，\n\n我想反馈：\n\n\nApp 版本：\(appVersion)"
         case .english:
             subject = "RepDay Feedback"
-            body = "Hi Lincoln,\n\nI’d like to share the following feedback:\n\n\nApp version: 1.1.0"
+            body = "Hi Lincoln,\n\nI’d like to share the following feedback:\n\n\nApp version: \(appVersion)"
         }
 
         var components = URLComponents()
@@ -381,6 +395,10 @@ struct ProfileView: View {
         )
     }
 
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+    }
+
     // MARK: Reminder time binding
 
     private var reminderTimeBinding: Binding<Date> {
@@ -397,6 +415,66 @@ struct ProfileView: View {
                 settings.reminderMinute = c.minute ?? 0
             }
         )
+    }
+}
+
+private struct PrivacyPolicyView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+                Text("Effective date: July 16, 2026")
+                    .font(.caption)
+                    .foregroundStyle(Theme.Color.textSecondary)
+
+                policySection(
+                    title: "Summary",
+                    body: "RepDay does not require an account. We do not collect, transmit, sell, or share your personal data, and we do not use advertising, analytics, or tracking SDKs."
+                )
+                policySection(
+                    title: "Workout data",
+                    body: "Your plans, exercises, workout logs, and history are stored locally on your device. A small amount of workout information is shared locally with the RepDay widget through Apple’s App Groups system. It is not sent to us or any third party."
+                )
+                policySection(
+                    title: "Calendar access (optional)",
+                    body: "If you choose Sync to Calendar, RepDay uses Apple’s EventKit framework to create and update a dedicated workout calendar on your device. Calendar information is not transmitted to us or any third party. You can revoke calendar access in the Settings app."
+                )
+                policySection(
+                    title: "Notifications (optional)",
+                    body: "If you enable reminders or a rest timer, RepDay schedules local notifications on your device. We do not use a notification server. You can revoke notification permission in the Settings app."
+                )
+                policySection(
+                    title: "Feedback",
+                    body: "When you choose to contact us, RepDay opens your email app with a draft. Nothing is sent unless you choose to send the email."
+                )
+                policySection(
+                    title: "Data retention and deletion",
+                    body: "Because we do not collect your data, we do not retain it on our systems. Deleting RepDay removes data stored by the app. Calendar events created at your request remain under your control in the Calendar app."
+                )
+                policySection(
+                    title: "Children’s privacy",
+                    body: "RepDay is not directed at children under 13 and does not knowingly collect personal information from anyone."
+                )
+                policySection(
+                    title: "Contact",
+                    body: "Questions about this policy: zhoulinhua0@gmail.com"
+                )
+            }
+            .padding(Theme.Spacing.xl)
+        }
+        .background(Theme.Color.background.ignoresSafeArea())
+        .navigationTitle("Privacy Policy")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func policySection(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Theme.Color.textPrimary)
+            Text(body)
+                .font(.body)
+                .foregroundStyle(Theme.Color.textSecondary)
+        }
     }
 }
 

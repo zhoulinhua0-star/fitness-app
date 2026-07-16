@@ -1,7 +1,7 @@
 import Foundation
 
 enum WidgetDataStore {
-    static let appGroupID = "group.com.zhoulinhua0-star.FitnessApp2026"
+    static let appGroupID = "group.com.zhoulinhua0-star.FitnessApp2026New"
     
     private enum Keys {
         static let completedSets = "widgetCompletedSets"

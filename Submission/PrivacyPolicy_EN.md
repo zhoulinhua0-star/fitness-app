@@ -1,6 +1,6 @@
 # Privacy Policy — RepDay
 
-**Effective date:** July 8, 2026
+**Effective date:** July 16, 2026
 
 RepDay ("the app", "we") is a personal fitness planning and workout-logging app. We
 designed RepDay to be **private by default**: your training data stays on your device.
@@ -18,27 +18,31 @@ This policy explains what the app does and does not do with your information.
 
 **Workout data (stored on device only).**
 Your plans, exercises, sets, reps, sessions, and history are saved locally on your
-device. This information is not uploaded to us or to any third party.
+device. A small amount of workout information is shared locally with the RepDay widget
+through Apple's App Groups system. This information is not uploaded to us or to any
+third party.
 
 **Calendar access (optional).**
-If you tap "Sync to Calendar", the app asks your permission to add your planned
-workouts as events in *your own* calendar. This happens entirely on your device through
-Apple's system Calendar. We do not read, store, or transmit your calendar.
+If you tap "Sync to Calendar", the app asks your permission to create and update a
+dedicated workout calendar on your device. This happens entirely on your device through
+Apple's EventKit framework. Calendar information is not transmitted to us or to any
+third party. You can revoke calendar access in the Settings app.
 
 **Notifications (optional).**
 If you enable reminders, the app schedules local notifications on your device to remind
-you to train. These are generated on-device and are not sent through our servers.
+you to train. These are generated on-device and are not sent through our servers. You
+can revoke notification permission in the Settings app.
 
-**Anonymous usage count (if enabled in a future version).**
-A future version may display an aggregate, anonymous count of how many people use the
-app (for example, "N athletes have joined"). This would be an anonymous tally that
-contains **no personal information** and cannot identify you.
+**Feedback (optional).**
+If you choose to contact us, the app opens your email app with a draft. Nothing is sent
+unless you choose to send the email.
 
 ## Data we collect
 
 **None.** RepDay does not collect personal data. Because we do not collect data, we do
 not sell or share it, and there is nothing for you to request access to or deletion of
-on our side. To remove all app data, simply delete the app.
+on our side. Deleting the app removes data stored by the app. Calendar events created
+at your request remain under your control in Apple's Calendar app.
 
 ## Children's privacy
 

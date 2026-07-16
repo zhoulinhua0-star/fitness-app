@@ -97,7 +97,7 @@ class CalendarManager {
                 event.title = "💪 今日训练：\(plan.exercises.first?.name ?? "")等"
                 event.isAllDay = true
                 event.startDate = startOfDay
-                event.endDate = startOfDay
+                event.endDate = sysCalendar.date(byAdding: .day, value: 1, to: startOfDay)
                 
                 // 把动作清单写进日历备注
                 let notes = plan.exercises.map { "• \($0.name): \($0.sets)组 × \($0.reps)次" }.joined(separator: "\n")
