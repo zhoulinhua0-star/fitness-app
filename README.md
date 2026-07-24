@@ -14,6 +14,7 @@
 ![Price](https://img.shields.io/badge/Price-Free-success)
 ![Privacy](https://img.shields.io/badge/Privacy-100%25_Local-blue)
 ![Region](https://img.shields.io/badge/Store-US_Only-red)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 *Plan the work. Work the plan. ｜ 制定计划，完成计划。*
 
@@ -72,3 +73,30 @@
 - 🛒 [**App Store**](https://apps.apple.com/us/app/repday-gym-workout-planner/id6791500746)
 - 🎧 [**Support ｜ 技术支持**](https://repday-support.zhoulinhua0.chatgpt.site/support)
 - 🛡️ [**Privacy Policy ｜ 隐私政策**](https://repday-support.zhoulinhua0.chatgpt.site/privacy)
+
+---
+
+## 💻 Tech Stack ｜ 技术栈
+
+> *(注：以下技术栈内容请根据你项目的实际情况进行删改修改)*
+
+- **UI Framework**: SwiftUI (iOS 17+)
+- **Data Persistence**: SwiftData / Core Data
+- **Extensions**: WidgetKit (Home Screen Widgets)
+- **Tooling**: Xcode 15+
+
+---
+
+## 💬 Feedback & Issues ｜ 反馈与问题
+
+If you encounter any issues or have feature requests, please feel free to [open an issue](../../issues) on this repository.
+
+如果你在使用或开发过程中遇到任何问题，或是有新的功能建议，欢迎在本项目提交 [Issue](../../issues)。
+
+---
+
+## 📄 License ｜ 协议
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+本项目基于 **MIT** 协议开源，详情请参阅 [LICENSE](LICENSE) 文件。
