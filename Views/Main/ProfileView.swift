@@ -11,7 +11,6 @@ import SwiftData
 
 struct ProfileView: View {
     @State private var settings = AppSettings.shared
-    @State private var notificationStatusMessage: String?
     @State private var copiedEmail: String?
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
@@ -128,7 +127,7 @@ struct ProfileView: View {
                         Text("默认休息时长")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Theme.Color.textPrimary)
-                        Text("休息结束后，若 App 在后台会推送提醒")
+                        Text("每个动作都可以单独调整")
                             .font(.caption)
                             .foregroundStyle(Theme.Color.textSecondary)
                     }
@@ -148,36 +147,34 @@ struct ProfileView: View {
 
                 Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
 
-                // Reminders
-                VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-                    Toggle(isOn: $settings.remindersEnabled) {
-                        Text("每日训练提醒")
+                NavigationLink(destination: SettingsView()) {
+                    HStack(spacing: Theme.Spacing.m) {
+                        Image(systemName: "bell.badge.fill")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Theme.Color.textPrimary)
-                    }
-                    .tint(Theme.Color.accent)
+                            .foregroundStyle(Theme.Color.accent)
+                            .frame(width: 36, height: 36)
+                            .background(Theme.Color.accentSoft, in: Circle())
 
-                    if settings.remindersEnabled {
-                        DatePicker("提醒时间", selection: reminderTimeBinding, displayedComponents: .hourAndMinute)
-                            .foregroundStyle(Theme.Color.textPrimary)
-                    }
-
-                    Button("更新提醒设置") {
-                        Task {
-                            await NotificationManager.scheduleDailyReminder(settings: settings)
-                            notificationStatusMessage = settings.remindersEnabled ? "提醒已更新 ✓" : "提醒已关闭"
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("通知与提醒")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Theme.Color.textPrimary)
+                            Text("休息计时、每日训练与系统权限")
+                                .font(.caption)
+                                .foregroundStyle(Theme.Color.textSecondary)
                         }
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.Color.accent)
 
-                    if let msg = notificationStatusMessage {
-                        Text(msg)
-                            .font(.caption)
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Theme.Color.textSecondary)
                     }
+                    .frame(minHeight: 64)
+                    .contentShape(Rectangle())
                 }
-                .padding(Theme.Spacing.l)
+                .buttonStyle(.plain)
+                .padding(.horizontal, Theme.Spacing.l)
             }
             .background(Theme.Color.surface)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
@@ -399,23 +396,6 @@ struct ProfileView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 
-    // MARK: Reminder time binding
-
-    private var reminderTimeBinding: Binding<Date> {
-        Binding(
-            get: {
-                var c = DateComponents()
-                c.hour = settings.reminderHour
-                c.minute = settings.reminderMinute
-                return Calendar.current.date(from: c) ?? .now
-            },
-            set: { newValue in
-                let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                settings.reminderHour = c.hour ?? 19
-                settings.reminderMinute = c.minute ?? 0
-            }
-        )
-    }
 }
 
 private struct PrivacyPolicyView: View {

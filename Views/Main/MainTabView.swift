@@ -7,34 +7,33 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
-    private enum Tab: Hashable { case today, analytics, plan, profile }
-    @State private var selectedTab: Tab = .today
+    @State private var navigation = AppNavigation.shared
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $navigation.selectedTab) {
             TodayWorkoutView()
                 .tabItem {
                     Label("今日", systemImage: "dumbbell.fill")
                 }
-                .tag(Tab.today)
+                .tag(AppTab.today)
 
             AnalyticsView()
                 .tabItem {
                     Label("统计", systemImage: "chart.line.uptrend.xyaxis")
                 }
-                .tag(Tab.analytics)
+                .tag(AppTab.analytics)
 
-            PlanSetupView(onSwitchToToday: { selectedTab = .today })
+            PlanSetupView(onSwitchToToday: { navigation.selectedTab = .today })
                 .tabItem {
                     Label("计划", systemImage: "list.bullet.rectangle.portrait.fill")
                 }
-                .tag(Tab.plan)
+                .tag(AppTab.plan)
 
             ProfileView()
                 .tabItem {
                     Label("我的", systemImage: "person.crop.circle.fill")
                 }
-                .tag(Tab.profile)
+                .tag(AppTab.profile)
         }
         .tint(Theme.Color.accent)
     }

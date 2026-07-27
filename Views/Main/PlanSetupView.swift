@@ -675,6 +675,9 @@ struct DayDetailEditorView: View {
     }
 
     private func deleteExercise(_ exercise: Exercise) {
+        RestTimerCoordinator.shared.cancel(
+            timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+        )
         withAnimation {
             workoutDay.exercises.removeAll { $0.id == exercise.id }
             // Re-pack order indices so they stay contiguous.

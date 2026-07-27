@@ -395,7 +395,12 @@ struct ImprovModeView: View {
         if let existing = try? modelContext.fetch(FetchDescriptor<Exercise>(
             predicate: #Predicate { $0.isImprov }
         )) {
-            for exercise in existing { modelContext.delete(exercise) }
+            for exercise in existing {
+                RestTimerCoordinator.shared.cancel(
+                    timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+                )
+                modelContext.delete(exercise)
+            }
         }
 
         let now = Date.now

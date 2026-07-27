@@ -3,25 +3,26 @@ import SwiftData
 
 struct ExpandableExerciseRow: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.scenePhase) private var scenePhase
     @Bindable var exercise: Exercise
     let session: WorkoutSession
     let isExpanded: Bool
     let onToggleExpand: () -> Void
     let onSetProgressChanged: () -> Void
 
-    @State private var showRestTimer = false
-    @State private var restTimerToken = UUID()
-    @State private var restTimerEndDate: Date = .now
+    @State private var restTimers = RestTimerCoordinator.shared
     @State private var todayRestSeconds: Int?
     @State private var showRestDurationPicker = false
 
-    private static let restTimerEndDateKey = "restTimerEndDate"
-    private static let restTimerExerciseNameKey = "restTimerExerciseName"
+    private static let legacyRestTimerEndDateKey = "restTimerEndDate"
+    private static let legacyRestTimerExerciseNameKey = "restTimerExerciseName"
     private static let restOverrideDayKey = "restOverrideDay"
     private static let restOverridesKey = "restOverrides"
     
     private var settings: AppSettings { AppSettings.shared }
+
+    private var activeRestTimer: ActiveRestTimer? {
+        restTimers.timer(for: restTimerID)
+    }
 
     private var effectiveRestSeconds: Int {
         todayRestSeconds ?? exercise.restSeconds ?? settings.defaultRestSeconds
@@ -85,10 +86,11 @@ struct ExpandableExerciseRow: View {
         .sensoryFeedback(.selection, trigger: isExpanded)
         .onAppear {
             todayRestSeconds = loadTodayRestOverride()
-            restoreRestTimerIfNeeded()
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active { restoreRestTimerIfNeeded() }
+            migrateLegacyRestTimerIfNeeded()
+            restTimers.register(timerID: restTimerID, exerciseName: exercise.name)
+            if isFullyCompleted {
+                restTimers.cancel(timerID: restTimerID)
+            }
         }
     }
     
@@ -118,6 +120,10 @@ struct ExpandableExerciseRow: View {
             }
 
             Spacer(minLength: 8)
+
+            if let timer = activeRestTimer, !isFullyCompleted {
+                RestTimerBadge(endDate: timer.endDate)
+            }
 
             CircleCheck(isComplete: isFullyCompleted)
         }
@@ -162,14 +168,12 @@ struct ExpandableExerciseRow: View {
             }
             .id(exercise.sets)
             
-            if showRestTimer && !isFullyCompleted {
+            if let timer = activeRestTimer, !isFullyCompleted {
                 RestTimerView(
-                    endDate: $restTimerEndDate,
+                    endDate: timer.endDate,
                     onSkip: { cancelRestTimer() },
-                    onComplete: { cancelRestTimer() },
                     onEndDateChanged: { updateRestTimerEndDate($0) }
                 )
-                .id(restTimerToken)
             }
             
             if !isFullyCompleted {
@@ -276,34 +280,20 @@ struct ExpandableExerciseRow: View {
             cancelRestTimer()
         } else if !exercise.isFullyCompletedToday {
             let restSeconds = effectiveRestSeconds
-            let endDate = Date().addingTimeInterval(TimeInterval(restSeconds))
-            NotificationManager.scheduleRestEndNotification(
-                after: restSeconds,
-                exerciseName: exercise.name
+            restTimers.start(
+                timerID: restTimerID,
+                exerciseName: exercise.name,
+                seconds: restSeconds
             )
-            restTimerEndDate = endDate
-            persistRestTimer(endDate: endDate)
-            showRestTimer = true
-            restTimerToken = UUID()
         }
     }
 
     private func cancelRestTimer() {
-        NotificationManager.cancelRestEndNotification()
-        clearPersistedRestTimer()
-        showRestTimer = false
-    }
-
-    private func persistRestTimer(endDate: Date) {
-        UserDefaults.standard.set(endDate.timeIntervalSince1970, forKey: Self.restTimerEndDateKey)
-        UserDefaults.standard.set(exercise.name, forKey: Self.restTimerExerciseNameKey)
+        restTimers.cancel(timerID: restTimerID)
     }
 
     private func updateRestTimerEndDate(_ endDate: Date) {
-        restTimerEndDate = endDate
-        persistRestTimer(endDate: endDate)
-        let remaining = max(1, Int(endDate.timeIntervalSinceNow.rounded(.up)))
-        NotificationManager.scheduleRestEndNotification(after: remaining, exerciseName: exercise.name)
+        restTimers.adjust(timerID: restTimerID, endDate: endDate)
     }
 
     private var restOverrideID: String {
@@ -353,26 +343,27 @@ struct ExpandableExerciseRow: View {
         String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 
-    private func clearPersistedRestTimer() {
-        UserDefaults.standard.removeObject(forKey: Self.restTimerEndDateKey)
-        UserDefaults.standard.removeObject(forKey: Self.restTimerExerciseNameKey)
+    private var restTimerID: String {
+        RestTimerCoordinator.timerID(for: exercise.persistentModelID)
     }
 
-    private func restoreRestTimerIfNeeded() {
-        let storedName = UserDefaults.standard.string(forKey: Self.restTimerExerciseNameKey)
-        guard storedName == exercise.name, !exercise.isFullyCompletedToday else {
-            if storedName == exercise.name { clearPersistedRestTimer() }
+    private func migrateLegacyRestTimerIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: Self.legacyRestTimerExerciseNameKey) == exercise.name else {
             return
         }
-        let interval = UserDefaults.standard.double(forKey: Self.restTimerEndDateKey)
-        guard interval > 0 else { return }
-        let endDate = Date(timeIntervalSince1970: interval)
-        guard endDate > Date() else {
-            clearPersistedRestTimer()
-            return
+
+        let interval = defaults.double(forKey: Self.legacyRestTimerEndDateKey)
+        NotificationManager.cancelLegacyRestEndNotification()
+        if interval > Date().timeIntervalSince1970 {
+            restTimers.restore(
+                timerID: restTimerID,
+                exerciseName: exercise.name,
+                endDate: Date(timeIntervalSince1970: interval)
+            )
         }
-        restTimerEndDate = endDate
-        showRestTimer = true
+        defaults.removeObject(forKey: Self.legacyRestTimerEndDateKey)
+        defaults.removeObject(forKey: Self.legacyRestTimerExerciseNameKey)
     }
     
     private func completeNextSet() {

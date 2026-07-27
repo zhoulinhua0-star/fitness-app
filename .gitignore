@@ -28,3 +28,6 @@ Pods/
 .DS_Store
 *.swp
 *~.nib
+
+# Local Codex handoff notes
+SESSION_HANDOFF.md

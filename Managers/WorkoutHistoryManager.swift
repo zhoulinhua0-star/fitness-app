@@ -57,7 +57,12 @@ enum WorkoutHistoryManager {
     }
 
     static func plannedSetCount(for exercises: [Exercise]) -> Int {
-        exercises.reduce(0) { $0 + $1.sets }
+        exercises.reduce(0) { total, exercise in
+            if exercise.isImprov && exercise.isRemovedFromImprov {
+                return total + exercise.effectiveCompletedSetCount
+            }
+            return total + exercise.sets
+        }
     }
 
     static func completedSetCount(for exercises: [Exercise]) -> Int {
@@ -73,8 +78,13 @@ enum WorkoutHistoryManager {
         session.completedSetCount = completedSetCount(for: exercises)
         session.dayName = dayName
 
-        let allDone = !exercises.isEmpty &&
-            exercises.allSatisfy { $0.isFullyCompletedToday }
+        let countedExercises = exercises.filter {
+            !$0.isRemovedFromImprov || $0.effectiveCompletedSetCount > 0
+        }
+        let allDone = !countedExercises.isEmpty &&
+            countedExercises.allSatisfy {
+                $0.isRemovedFromImprov || $0.isFullyCompletedToday
+            }
         session.isComplete = allDone
         session.completedAt = allDone ? (session.completedAt ?? .now) : nil
     }

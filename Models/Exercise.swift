@@ -15,6 +15,9 @@ final class Exercise {
     /// True for ad-hoc "即兴" exercises that live only for today and are not
     /// part of any persistent weekly plan (not attached to a WorkoutDay).
     var isImprov: Bool = false
+    /// Keeps a removed improv exercise around until the session ends so any
+    /// completed sets remain part of today's history and progress.
+    var isRemovedFromImprov: Bool = false
 
     init(
         name: String,
@@ -25,7 +28,8 @@ final class Exercise {
         lastCompletedDate: Date? = nil,
         sessionDate: Date? = nil,
         completedSetCount: Int = 0,
-        isImprov: Bool = false
+        isImprov: Bool = false,
+        isRemovedFromImprov: Bool = false
     ) {
         self.name = name
         self.sets = sets
@@ -36,6 +40,7 @@ final class Exercise {
         self.sessionDate = sessionDate
         self.completedSetCount = completedSetCount
         self.isImprov = isImprov
+        self.isRemovedFromImprov = isRemovedFromImprov
     }
 }
 

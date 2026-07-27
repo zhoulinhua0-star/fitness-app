@@ -8,6 +8,8 @@ import SwiftData
 
 @main
 struct FitnessAppApp: App {
+    @UIApplicationDelegateAdaptor(AppNotificationDelegate.self) private var notificationDelegate
+
     var body: some Scene {
         WindowGroup {
             RootView()

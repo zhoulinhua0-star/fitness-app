@@ -25,7 +25,9 @@ struct TodayWorkoutView: View {
     @AppStorage("improvFinishedDayStamp") private var improvFinishedDayStamp: Double = 0
     @State private var didCelebrateFullWorkout = false
     @State private var showCompletionSummary = false
+    @State private var showImprovEditor = false
     @State private var todaySession: WorkoutSession?
+    @State private var navigation = AppNavigation.shared
 
     var todayPlan: WorkoutDay? {
         let todayString = WorkoutHistoryManager.todayWeekdayString()
@@ -55,8 +57,21 @@ struct TodayWorkoutView: View {
     /// The exercises actually shown & logged today, whatever the source.
     var activeExercises: [Exercise] {
         isImprovActive
-            ? todayImprovExercises
+            ? todayImprovExercises.filter { !$0.isRemovedFromImprov }
             : (todayPlan?.exercises.sorted { $0.order < $1.order } ?? [])
+    }
+
+    /// Includes removed improv exercises until the session ends, allowing their
+    /// completed sets to remain in today's progress and history.
+    var sessionExercises: [Exercise] {
+        isImprovActive ? todayImprovExercises : activeExercises
+    }
+
+    /// Removed exercises count only when the user completed at least one set.
+    var countedExercises: [Exercise] {
+        sessionExercises.filter {
+            !$0.isRemovedFromImprov || $0.effectiveCompletedSetCount > 0
+        }
     }
 
     var headerDayName: String {
@@ -64,15 +79,21 @@ struct TodayWorkoutView: View {
     }
 
     var completedExerciseCount: Int {
-        activeExercises.filter { $0.isFullyCompletedToday }.count
+        countedExercises.filter {
+            $0.isRemovedFromImprov || $0.isFullyCompletedToday
+        }.count
+    }
+
+    var totalExerciseCount: Int {
+        countedExercises.count
     }
 
     var completedSetCount: Int {
-        activeExercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+        WorkoutHistoryManager.completedSetCount(for: sessionExercises)
     }
 
     var totalSetCount: Int {
-        activeExercises.reduce(0) { $0 + $1.sets }
+        WorkoutHistoryManager.plannedSetCount(for: sessionExercises)
     }
 
     var progress: Double {
@@ -83,7 +104,7 @@ struct TodayWorkoutView: View {
     /// Re-runs session setup whenever the active workout meaningfully changes
     /// (day rollover, plan edits, or improv exercises being injected/cleared).
     private var refreshKey: String {
-        "\(headerDayName)#\(activeExercises.count)#\(isImprovActive)#\(isDayFinishedToday)"
+        "\(headerDayName)#\(activeExercises.count)#\(totalSetCount)#\(isImprovActive)#\(isDayFinishedToday)"
     }
 
     var body: some View {
@@ -112,7 +133,7 @@ struct TodayWorkoutView: View {
                         completedSets: completedSetCount,
                         totalSets: totalSetCount,
                         completedExercises: completedExerciseCount,
-                        totalExercises: activeExercises.count,
+                        totalExercises: totalExerciseCount,
                         onDismiss: {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                                 showCompletionSummary = false
@@ -127,6 +148,15 @@ struct TodayWorkoutView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task(id: refreshKey) {
                 refreshTodaySessions()
+                openPendingRestTimerIfNeeded()
+            }
+            .onChange(of: navigation.pendingRestTimerID) { _, _ in
+                openPendingRestTimerIfNeeded()
+            }
+            .sheet(isPresented: $showImprovEditor) {
+                ImprovWorkoutEditorSheet(onWorkoutChanged: handleImprovWorkoutChanged)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -142,7 +172,7 @@ struct TodayWorkoutView: View {
             return
         }
 
-        let exercises = activeExercises
+        let exercises = sessionExercises
         for exercise in exercises {
             exercise.prepareForTodayIfNeeded()
         }
@@ -158,6 +188,19 @@ struct TodayWorkoutView: View {
         syncWidgetAndSave()
     }
 
+    private func openPendingRestTimerIfNeeded() {
+        guard let timerID = navigation.pendingRestTimerID else { return }
+        guard let exercise = activeExercises.first(where: {
+            RestTimerCoordinator.timerID(for: $0.persistentModelID) == timerID
+        }) else {
+            navigation.pendingRestTimerID = nil
+            return
+        }
+
+        expandedExerciseName = exercise.name
+        navigation.pendingRestTimerID = nil
+    }
+
     /// Delete improv exercises left over from previous days so they never
     /// resurface (they are not part of any persistent plan).
     private func purgeStaleImprovExercises() {
@@ -165,6 +208,9 @@ struct TodayWorkoutView: View {
             !($0.sessionDate.map { Calendar.current.isDateInToday($0) } ?? false)
         }
         for exercise in stale {
+            RestTimerCoordinator.shared.cancel(
+                timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+            )
             modelContext.delete(exercise)
         }
     }
@@ -180,7 +226,7 @@ extension TodayWorkoutView {
                 CounterPill(
                     emoji: isImprovActive ? "⚡️" : "🎉",
                     value: completedExerciseCount,
-                    total: activeExercises.count
+                    total: totalExerciseCount
                 )
                 Spacer()
                 if isImprovActive {
@@ -220,15 +266,35 @@ extension TodayWorkoutView {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: Theme.Spacing.m) {
-                    SectionPill(
-                        title: isImprovActive ? "即兴训练" : "今日训练",
-                        count: activeExercises.count,
-                        systemImage: "dumbbell.fill",
-                        tint: Theme.Color.tintPeach
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: Theme.Spacing.m) {
+                        SectionPill(
+                            title: isImprovActive ? "即兴训练" : "今日训练",
+                            count: activeExercises.count,
+                            systemImage: "dumbbell.fill",
+                            tint: Theme.Color.tintPeach
+                        )
 
-                    if let session = todaySession {
+                        Spacer()
+
+                        if isImprovActive {
+                            Button {
+                                showImprovEditor = true
+                            } label: {
+                                Label("编辑", systemImage: "slider.horizontal.3")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Theme.Color.accent)
+                                    .padding(.horizontal, Theme.Spacing.m)
+                                    .frame(minHeight: 44)
+                                    .background(Theme.Color.accentSoft, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("添加、移出或调整即兴训练动作顺序")
+                        }
+                    }
+
+                    if isImprovActive && activeExercises.isEmpty {
+                        improvEmptyState
+                    } else if let session = todaySession {
                         ForEach(activeExercises) { exercise in
                             ExpandableExerciseRow(
                                 exercise: exercise,
@@ -261,7 +327,7 @@ extension TodayWorkoutView {
                 Text("\(completedSetCount) / \(totalSetCount) 组")
                     .font(.display(28, weight: .bold))
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text("\(completedExerciseCount) / \(activeExercises.count) 个动作已完成")
+                Text("\(completedExerciseCount) / \(totalExerciseCount) 个动作已完成")
                     .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
             }
@@ -272,7 +338,7 @@ extension TodayWorkoutView {
     }
 
     private func handleSetProgressChanged() {
-        let exercises = activeExercises
+        let exercises = sessionExercises
         for exercise in exercises {
             exercise.prepareForTodayIfNeeded()
         }
@@ -288,7 +354,7 @@ extension TodayWorkoutView {
             WorkoutHistoryManager.syncSessionMetadata(session: session, dayName: headerDayName, exercises: exercises)
         }
 
-        let allExercisesDone = completedExerciseCount == exercises.count && !exercises.isEmpty
+        let allExercisesDone = completedExerciseCount == totalExerciseCount && totalExerciseCount > 0
         if allExercisesDone && !didCelebrateFullWorkout {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             didCelebrateFullWorkout = true
@@ -299,6 +365,15 @@ extension TodayWorkoutView {
             didCelebrateFullWorkout = false
         }
 
+        syncWidgetAndSave()
+    }
+
+    private func handleImprovWorkoutChanged() {
+        if !activeExercises.contains(where: { $0.name == expandedExerciseName }) {
+            expandedExerciseName = ""
+        }
+        didCelebrateFullWorkout = false
+        showCompletionSummary = false
         syncWidgetAndSave()
     }
 
@@ -321,6 +396,9 @@ extension TodayWorkoutView {
         }
 
         for exercise in todayImprovExercises {
+            RestTimerCoordinator.shared.cancel(
+                timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+            )
             modelContext.delete(exercise)
         }
         expandedExerciseName = ""
@@ -338,6 +416,30 @@ extension TodayWorkoutView {
     private func syncWidgetAndSave() {
         WidgetSyncManager.sync(workoutDays: workoutDays, context: modelContext)
         try? modelContext.save()
+    }
+
+    private var improvEmptyState: some View {
+        VStack(spacing: Theme.Spacing.m) {
+            Image(systemName: "plus.circle")
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(Theme.Color.accent)
+            Text("暂时没有待训练动作")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Theme.Color.textPrimary)
+            Text("打开编辑面板添加动作，或结束本次即兴训练")
+                .font(.subheadline)
+                .foregroundStyle(Theme.Color.textSecondary)
+                .multilineTextAlignment(.center)
+            Button {
+                showImprovEditor = true
+            } label: {
+                Label("添加动作", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.Color.accent)
+        }
+        .frame(maxWidth: .infinity)
+        .tiimoCard(padding: Theme.Spacing.xl)
     }
 
     // MARK: Day completed (improv finished)
