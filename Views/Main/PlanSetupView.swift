@@ -34,9 +34,9 @@ private struct PlanModeToggle: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: m.icon)
-                            .font(.system(size: 12, weight: .semibold))
+                            .appScaledFont(size: 12, relativeTo: .caption, weight: .semibold)
                         Text(m.rawValue)
-                            .font(.system(size: 14, weight: .semibold))
+                            .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
                     }
                     .foregroundStyle(mode == m ? Theme.Color.textPrimary : Theme.Color.textSecondary)
                     .frame(maxWidth: .infinity)
@@ -66,6 +66,7 @@ struct PlanSetupView: View {
     var onSwitchToToday: () -> Void = {}
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var workoutDays: [WorkoutDay]
 
     @State private var isSyncing = false
@@ -73,7 +74,12 @@ struct PlanSetupView: View {
     @State private var planMode: PlanMode = .plan
     @State private var shimmerX: CGFloat = -0.6
 
-    private let columns = [GridItem(.flexible(), spacing: Theme.Spacing.m), GridItem(.flexible(), spacing: Theme.Spacing.m)]
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: Theme.Spacing.m),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
+    }
 
     var sortedDays: [WorkoutDay] {
         let order = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
@@ -180,7 +186,7 @@ struct PlanSetupView: View {
                 EmojiTile(emoji: "🗂️", tint: Theme.Color.tintBlue)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("模板库")
-                        .font(.system(size: 16, weight: .semibold))
+                        .appScaledFont(size: 16, relativeTo: .body, weight: .semibold)
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text("建好模板，一键套用到任意一天")
                         .font(.caption)
@@ -188,7 +194,7 @@ struct PlanSetupView: View {
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                    .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
                     .foregroundStyle(Theme.Color.textSecondary)
             }
             .tiimoCard()
@@ -202,7 +208,7 @@ struct PlanSetupView: View {
                 .font(.displayLarge)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text(planMode == .plan ? "管理每周训练计划" : "随心所欲，今天练啥？")
-                .font(.system(size: 15, weight: .medium))
+                .appScaledFont(size: 15, relativeTo: .subheadline, weight: .medium)
                 .foregroundStyle(Theme.Color.textSecondary)
                 .animation(.easeInOut(duration: 0.25), value: planMode)
         }
@@ -225,7 +231,7 @@ struct PlanSetupView: View {
                     Text("同步到日历")
                 }
             }
-            .font(.system(size: 17, weight: .bold))
+            .appScaledFont(size: 17, relativeTo: .headline, weight: .bold)
             .foregroundStyle(showSuccessFeedback ? .white : Theme.Color.ctaLabel)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
@@ -271,6 +277,8 @@ struct PlanSetupView: View {
 struct PlanDayCard: View {
     let workoutDay: WorkoutDay
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     private var isToday: Bool {
         workoutDay.dayName == WeekPlanSummary.todayDayName()
     }
@@ -303,19 +311,19 @@ struct PlanDayCard: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             HStack {
                 Text(WeekdayDisplay.label(for: workoutDay.dayName))
-                    .font(.system(size: 15, weight: .bold))
+                    .appScaledFont(size: 15, relativeTo: .subheadline, weight: .bold)
                     .foregroundStyle(isToday ? Theme.Color.accent : Theme.Color.textPrimary)
                 Spacer()
                 if workoutDay.isRestDay {
                     Text("休息")
-                        .font(.system(size: 11, weight: .bold))
+                        .appScaledFont(size: 11, relativeTo: .caption2, weight: .bold)
                         .foregroundStyle(Theme.Color.success)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Theme.Color.tintMint, in: Capsule())
                 } else if isToday {
                     Text("今天")
-                        .font(.system(size: 11, weight: .bold))
+                        .appScaledFont(size: 11, relativeTo: .caption2, weight: .bold)
                         .foregroundStyle(Theme.Color.accent)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -350,18 +358,18 @@ struct PlanDayCard: View {
                     ForEach(workoutDay.exercises.sorted(by: { $0.order < $1.order }).prefix(2)) { exercise in
                         HStack {
                             Text("• \(exercise.name)")
-                                .font(.system(size: 12, weight: .medium))
+                                .appScaledFont(size: 12, relativeTo: .caption, weight: .medium)
                                 .foregroundStyle(Theme.Color.textPrimary)
                                 .lineLimit(1)
                             Spacer()
                             Text("\(exercise.sets)组")
-                                .font(.system(size: 11))
+                                .appScaledFont(size: 11, relativeTo: .caption2)
                                 .foregroundStyle(Theme.Color.textSecondary)
                         }
                     }
                     if workoutDay.exercises.count > 2 {
                         Text("等共 \(workoutDay.exercises.count) 个动作")
-                            .font(.system(size: 10))
+                            .appScaledFont(size: 10, relativeTo: .caption2)
                             .foregroundStyle(Theme.Color.textSecondary)
                             .padding(.top, 2)
                     }
@@ -371,20 +379,21 @@ struct PlanDayCard: View {
 
                 HStack {
                     Text("\(intensityEmoji) \(intensityLabel)")
-                        .font(.system(size: 10, weight: .bold))
+                        .appScaledFont(size: 10, relativeTo: .caption2, weight: .bold)
                         .foregroundStyle(Theme.Color.textPrimary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(intensityColor, in: Capsule())
                     Spacer()
                     Text("\(totalSets) 组")
-                        .font(.system(size: 11, weight: .semibold))
+                        .appScaledFont(size: 11, relativeTo: .caption2, weight: .semibold)
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
             }
         }
         .padding(Theme.Spacing.m)
-        .frame(height: 165)
+        .frame(height: usesAppStoreCardHeight ? 165 : nil)
+        .frame(minHeight: 165)
         .background(Theme.Color.surface)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         .overlay(
@@ -393,6 +402,15 @@ struct PlanDayCard: View {
                         lineWidth: isToday ? 1.5 : 1)
         )
         .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
+    }
+
+    private var usesAppStoreCardHeight: Bool {
+        switch dynamicTypeSize {
+        case .xSmall, .small, .medium, .large:
+            true
+        default:
+            false
+        }
     }
 }
 
@@ -480,7 +498,7 @@ struct DayDetailEditorView: View {
                       tint: workoutDay.isRestDay ? Theme.Color.tintMint : Theme.Color.accentSoft)
             VStack(alignment: .leading, spacing: 2) {
                 Text(workoutDay.isRestDay ? "休息日" : "训练日")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(workoutDay.isRestDay ? "肌肉正在修复，好好放松" : "安排今天的训练动作")
                     .font(.caption)
@@ -515,14 +533,14 @@ struct DayDetailEditorView: View {
         VStack(spacing: 3) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.display(24, weight: .bold))
+                    .font(.displayMetricSmall)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(unit)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -557,7 +575,7 @@ struct DayDetailEditorView: View {
         VStack(spacing: Theme.Spacing.m) {
             Text("🗒️").font(.system(size: 36))
             Text("还没有安排动作")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.Color.textPrimary)
 
             if !availableTemplates.isEmpty {
@@ -572,7 +590,7 @@ struct DayDetailEditorView: View {
                         Image(systemName: "square.stack.3d.up.fill")
                         Text("从模板库套用课表")
                     }
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.accent)
                     .padding(.horizontal, Theme.Spacing.l)
                     .padding(.vertical, Theme.Spacing.s)
@@ -588,7 +606,7 @@ struct DayDetailEditorView: View {
                         Image(systemName: "plus.square.on.square")
                         Text("去模板库创建模板")
                     }
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.accent)
                     .padding(.horizontal, Theme.Spacing.l)
                     .padding(.vertical, Theme.Spacing.s)
@@ -613,7 +631,7 @@ struct DayDetailEditorView: View {
 
             VStack(spacing: Theme.Spacing.l) {
                 TextField("", text: $newExerciseName, prompt: Text("输入动作名称").foregroundColor(Theme.Color.textSecondary))
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .focused($nameFieldFocused)
                     .submitLabel(.done)
@@ -629,7 +647,7 @@ struct DayDetailEditorView: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             } label: {
                                 Text(pick)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.caption.weight(.medium))
                                     .foregroundStyle(newExerciseName == pick ? Theme.Color.accent : Theme.Color.textSecondary)
                                     .padding(.horizontal, Theme.Spacing.m)
                                     .padding(.vertical, Theme.Spacing.s)
@@ -732,7 +750,7 @@ struct ExerciseEditorCard: View {
                 EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
 
                 TextField("动作名称", text: $exercise.name)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
 
                 Menu {
@@ -741,10 +759,11 @@ struct ExerciseEditorCard: View {
                     Button(role: .destructive, action: onDelete) { Label("删除动作", systemImage: "trash") }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
+                        .appScaledFont(size: 16, relativeTo: .body, weight: .semibold)
                         .foregroundStyle(Theme.Color.textSecondary)
                         .frame(width: 32, height: 32)
                         .background(Theme.Color.surfaceMuted, in: Circle())
+                        .contentShape(Rectangle().inset(by: -6))
                 }
             }
 
@@ -756,10 +775,10 @@ struct ExerciseEditorCard: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
                     Text("总计")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                     Text("\(exercise.sets * exercise.reps) 次")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(Theme.Color.accent)
                 }
             }

@@ -12,6 +12,7 @@ import SwiftData
 
 struct AnalyticsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var workoutDays: [WorkoutDay]
     @Query(sort: \WorkoutSession.sessionDate, order: .reverse) private var sessions: [WorkoutSession]
     @Query(filter: #Predicate<Exercise> { $0.isImprov }) private var improvExercises: [Exercise]
@@ -116,7 +117,7 @@ extension AnalyticsView {
                 .font(.displayLarge)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text(Date.now, format: .dateTime.month(.wide).day().year())
-                .font(.system(size: 15, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,9 +127,18 @@ extension AnalyticsView {
     // MARK: Overview pills
 
     private var overviewPills: some View {
-        HStack(spacing: Theme.Spacing.m) {
-            statPill(value: "\(streak)", label: "连续打卡", unit: "天", tint: Theme.Color.tintPeach)
-            statPill(value: "\(sessions.count)", label: "历史训练", unit: "次", tint: Theme.Color.tintBlue)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: Theme.Spacing.m) {
+                    statPill(value: "\(streak)", label: "连续打卡", unit: "天", tint: Theme.Color.tintPeach)
+                    statPill(value: "\(sessions.count)", label: "历史训练", unit: "次", tint: Theme.Color.tintBlue)
+                }
+            } else {
+                HStack(spacing: Theme.Spacing.m) {
+                    statPill(value: "\(streak)", label: "连续打卡", unit: "天", tint: Theme.Color.tintPeach)
+                    statPill(value: "\(sessions.count)", label: "历史训练", unit: "次", tint: Theme.Color.tintBlue)
+                }
+            }
         }
         .padding(.horizontal, Theme.Spacing.xl)
     }
@@ -136,14 +146,14 @@ extension AnalyticsView {
     private func statPill(value: String, label: String, unit: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Text(label)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.Color.textSecondary)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
                 Text(value)
-                    .font(.display(32, weight: .bold))
+                    .font(.displayMetric)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(unit)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
         }
@@ -161,38 +171,54 @@ extension AnalyticsView {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if isImprovActiveToday || isDayFinishedToday || (todayPlan.map { !$0.isRestDay && !$0.exercises.isEmpty } ?? false) {
-                HStack {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                        HStack(alignment: .lastTextBaseline, spacing: 4) {
-                            Text("\(todayCompletedSets)")
-                                .font(.display(36, weight: .bold))
-                                .foregroundStyle(Theme.Color.textPrimary)
-                            Text("/ \(todayPlannedSets) 组")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(Theme.Color.textSecondary)
-                        }
-                        Text(isImprovActiveToday
-                            ? "即兴训练"
-                            : (isDayFinishedToday ? "即兴训练 · 已完成" : (todayPlan?.dayName ?? "")))
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Theme.Color.textSecondary)
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+                        todayProgressText
+                        todayProgressRing
+                            .frame(maxWidth: .infinity)
                     }
-                    Spacer()
-                    RingProgressView(
-                        progress: todayPlannedSets > 0
-                            ? Double(todayCompletedSets) / Double(todayPlannedSets)
-                            : 0,
-                        size: 64
-                    )
+                } else {
+                    HStack {
+                        todayProgressText
+                        Spacer()
+                        todayProgressRing
+                    }
                 }
             } else {
                 Text("今日休息或无训练安排")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
         }
         .tiimoCard()
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    private var todayProgressText: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            HStack(alignment: .lastTextBaseline, spacing: 4) {
+                Text("\(todayCompletedSets)")
+                    .font(.displayMetricLarge)
+                    .foregroundStyle(Theme.Color.textPrimary)
+                Text("/ \(todayPlannedSets) 组")
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
+            Text(isImprovActiveToday
+                ? "即兴训练"
+                : (isDayFinishedToday ? "即兴训练 · 已完成" : (todayPlan?.dayName ?? "")))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.Color.textSecondary)
+        }
+    }
+
+    private var todayProgressRing: some View {
+        RingProgressView(
+            progress: todayPlannedSets > 0
+                ? Double(todayCompletedSets) / Double(todayPlannedSets)
+                : 0,
+            size: 64
+        )
     }
 
     // MARK: Weekly chart
@@ -300,7 +326,7 @@ extension AnalyticsView {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(session.dayName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(session.sessionDate, format: .dateTime.month().day().weekday(.abbreviated))
                     .font(.caption)
@@ -309,7 +335,7 @@ extension AnalyticsView {
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
                 Text("\(session.completedSetCount)/\(session.plannedSetCount) 组")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.accent)
                 Text(session.isComplete ? "已完成" : "部分完成")
                     .font(.caption)
@@ -324,12 +350,12 @@ extension AnalyticsView {
     private var quoteCard: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
             Text("\"")
-                .font(.display(40, weight: .bold))
+                .font(.displayMetricLarge)
                 .foregroundStyle(Theme.Color.accent)
                 .offset(y: 8)
 
             Text("自律不是一种行为，而是一种习惯。你挥洒的每一滴汗水，日历和身体都会帮你记住。")
-                .font(.system(size: 15, weight: .regular))
+                .font(.subheadline)
                 .italic()
                 .foregroundStyle(Theme.Color.textSecondary)
                 .lineSpacing(5)

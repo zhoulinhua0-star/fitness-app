@@ -10,10 +10,10 @@ import SwiftUI
 import SwiftData
 
 struct ProfileView: View {
-    @State private var settings = AppSettings.shared
     @State private var copiedEmail: String?
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query(sort: \WorkoutSession.sessionDate, order: .reverse) private var sessions: [WorkoutSession]
 
     private var streak: Int { WorkoutHistoryManager.currentStreak(context: modelContext) }
@@ -51,7 +51,7 @@ struct ProfileView: View {
                 .font(.displayLarge)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text("个人数据与设置")
-                .font(.system(size: 15, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -74,40 +74,63 @@ struct ProfileView: View {
                 .font(.displayMedium)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text(Brand.slogan)
-                .font(.system(size: 13, weight: .medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
 
             Divider().background(Theme.Color.hairline)
 
             // Stats row
-            HStack {
-                statBlock(value: "\(streak)", label: "连续打卡", unit: "天")
-                Divider().frame(height: 44).background(Theme.Color.hairline)
-                statBlock(value: "\(sessions.count)", label: "总训练次数", unit: "次")
-                Divider().frame(height: 44).background(Theme.Color.hairline)
-                statBlock(
-                    value: "\(sessions.reduce(0) { $0 + $1.completedSetCount })",
-                    label: "累计完成组",
-                    unit: "组"
-                )
-            }
+            profileStats
         }
         .tiimoCard(padding: Theme.Spacing.xl)
         .padding(.horizontal, Theme.Spacing.xl)
+    }
+
+    @ViewBuilder
+    private var profileStats: some View {
+        let blocks = [
+            (value: "\(streak)", label: "连续打卡", unit: "天"),
+            (value: "\(sessions.count)", label: "总训练次数", unit: "次"),
+            (
+                value: "\(sessions.reduce(0) { $0 + $1.completedSetCount })",
+                label: "累计完成组",
+                unit: "组"
+            )
+        ]
+
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: Theme.Spacing.m) {
+                ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                    statBlock(value: block.value, label: block.label, unit: block.unit)
+                    if index < blocks.count - 1 {
+                        Divider().background(Theme.Color.hairline)
+                    }
+                }
+            }
+        } else {
+            HStack {
+                ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                    statBlock(value: block.value, label: block.label, unit: block.unit)
+                    if index < blocks.count - 1 {
+                        Divider().frame(height: 44).background(Theme.Color.hairline)
+                    }
+                }
+            }
+        }
     }
 
     private func statBlock(value: String, label: String, unit: String) -> some View {
         VStack(spacing: 3) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.display(24, weight: .bold))
+                    .font(.displayMetricSmall)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(unit)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -117,65 +140,37 @@ struct ProfileView: View {
 
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
-            SectionPill(title: "训练设置", systemImage: "gearshape.fill", tint: Theme.Color.tintBlue)
+            SectionPill(title: "设置", systemImage: "gearshape.fill", tint: Theme.Color.tintBlue)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(spacing: 0) {
-                // Rest duration
-                HStack {
+            NavigationLink(destination: AppSettingsView()) {
+                HStack(spacing: Theme.Spacing.m) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.Color.accent)
+                        .frame(width: 36, height: 36)
+                        .background(Theme.Color.accentSoft, in: Circle())
+
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("默认休息时长")
-                            .font(.system(size: 15, weight: .semibold))
+                        Text("设置")
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.Color.textPrimary)
-                        Text("每个动作都可以单独调整")
+                        Text("通用、训练与通知")
                             .font(.caption)
                             .foregroundStyle(Theme.Color.textSecondary)
                     }
+
                     Spacer()
-                    Stepper("\(settings.defaultRestSeconds)秒", value: $settings.defaultRestSeconds, in: 30...300, step: 15)
-                        .labelsHidden()
-                        .foregroundStyle(Theme.Color.accent)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.Color.textSecondary)
                 }
-                .padding(Theme.Spacing.l)
-
-                Text("\(settings.defaultRestSeconds) 秒")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.Color.accent)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.horizontal, Theme.Spacing.l)
-                    .padding(.bottom, Theme.Spacing.s)
-
-                Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
-
-                NavigationLink(destination: SettingsView()) {
-                    HStack(spacing: Theme.Spacing.m) {
-                        Image(systemName: "bell.badge.fill")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Theme.Color.accent)
-                            .frame(width: 36, height: 36)
-                            .background(Theme.Color.accentSoft, in: Circle())
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("通知与提醒")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Theme.Color.textPrimary)
-                            Text("休息计时、每日训练与系统权限")
-                                .font(.caption)
-                                .foregroundStyle(Theme.Color.textSecondary)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.Color.textSecondary)
-                    }
-                    .frame(minHeight: 64)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
                 .padding(.horizontal, Theme.Spacing.l)
+                .frame(minHeight: 64)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .background(Theme.Color.surface)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
             .overlay(
@@ -200,7 +195,7 @@ struct ProfileView: View {
                 NavigationLink(destination: PrivacyPolicyView()) {
                     HStack {
                         Text("隐私政策 / Privacy Policy")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.Color.textPrimary)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -213,7 +208,7 @@ struct ProfileView: View {
                 Divider().background(Theme.Color.hairline).padding(.horizontal, Theme.Spacing.l)
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("🔒 完全本地存储")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text("所有数据保存在你的设备上，不上传任何云端。")
                         .font(.caption)
@@ -236,11 +231,11 @@ struct ProfileView: View {
     private func aboutRow(label: String, value: String) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.Color.textPrimary)
             Spacer()
             Text(value)
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .padding(Theme.Spacing.l)
@@ -256,7 +251,7 @@ struct ProfileView: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("有建议或发现问题？欢迎直接联系我。")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text("Suggestions and feedback are always welcome.")
                         .font(.caption)
@@ -306,14 +301,14 @@ struct ProfileView: View {
         } label: {
             HStack(spacing: Theme.Spacing.m) {
                 Image(systemName: "envelope")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.accent)
                     .frame(width: 36, height: 36)
                     .background(Theme.Color.accentSoft, in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(audience)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text(address)
                         .font(.caption)

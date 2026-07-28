@@ -12,6 +12,7 @@ import SwiftData
 
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var systemDynamicTypeSize
     @Query private var workoutDays: [WorkoutDay]
     @Query(filter: #Predicate<Exercise> { $0.isImprov }) private var improvExercises: [Exercise]
     @AppStorage("improvFinishedDayStamp") private var improvFinishedDayStamp: Double = 0
@@ -48,6 +49,7 @@ struct RootView: View {
                 .zIndex(2)
             }
         }
+        .dynamicTypeSize(settings.textSizePreference.adjusted(from: systemDynamicTypeSize))
         .animation(.spring(response: 0.35, dampingFraction: 0.86), value: restTimers.notice)
         .task(id: reminderRefreshKey) {
             await refreshDailyReminders()
@@ -123,12 +125,12 @@ private struct RestTimerNoticeBanner: View {
     var body: some View {
         HStack(spacing: Theme.Spacing.m) {
             Image(systemName: notice.kind == .completed ? "checkmark.circle.fill" : "bell.slash.fill")
-                .font(.system(size: 20, weight: .semibold))
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(notice.kind == .completed ? Theme.Color.success : Theme.Color.accent)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(notice.title)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(notice.message)
                     .font(.caption)

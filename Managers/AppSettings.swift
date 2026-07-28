@@ -1,6 +1,48 @@
 import Foundation
 import SwiftUI
 
+enum AppTextSizePreference: String, CaseIterable, Identifiable {
+    case compact
+    case standard
+    case large
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .compact: "紧凑"
+        case .standard: "标准"
+        case .large: "大字"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .compact: "更高信息密度"
+        case .standard: "舒适清晰，推荐使用"
+        case .large: "跟随系统文字大小"
+        }
+    }
+
+    func adjusted(from systemSize: DynamicTypeSize) -> DynamicTypeSize {
+        let sizes: [DynamicTypeSize] = [
+            .xSmall, .small, .medium, .large, .xLarge, .xxLarge, .xxxLarge,
+            .accessibility1, .accessibility2, .accessibility3, .accessibility4, .accessibility5
+        ]
+        guard let index = sizes.firstIndex(of: systemSize) else { return systemSize }
+
+        let offset = switch self {
+        case .compact: -2
+        case .standard: -1
+        case .large: 0
+        }
+        let minimumIndex = systemSize.isAccessibilitySize
+            ? sizes.firstIndex(of: .accessibility1) ?? sizes.startIndex
+            : sizes.startIndex
+        return sizes[min(max(index + offset, minimumIndex), sizes.index(before: sizes.endIndex))]
+    }
+}
+
 @Observable
 final class AppSettings {
     static let shared = AppSettings()
@@ -15,6 +57,7 @@ final class AppSettings {
         static let reminderMinute = "reminderMinute"
         static let remindersOnPlannedDaysOnly = "remindersOnPlannedDaysOnly"
         static let skipReminderWhenCompleted = "skipReminderWhenCompleted"
+        static let textSizePreference = "textSizePreference"
     }
     
     private let defaults = UserDefaults.standard
@@ -54,6 +97,10 @@ final class AppSettings {
     var skipReminderWhenCompleted: Bool {
         didSet { defaults.set(skipReminderWhenCompleted, forKey: Keys.skipReminderWhenCompleted) }
     }
+
+    var textSizePreference: AppTextSizePreference {
+        didSet { defaults.set(textSizePreference.rawValue, forKey: Keys.textSizePreference) }
+    }
     
     private init() {
         let storedRest = defaults.object(forKey: Keys.defaultRestSeconds) as? Int
@@ -66,5 +113,8 @@ final class AppSettings {
         reminderMinute = defaults.object(forKey: Keys.reminderMinute) as? Int ?? 0
         remindersOnPlannedDaysOnly = defaults.object(forKey: Keys.remindersOnPlannedDaysOnly) as? Bool ?? true
         skipReminderWhenCompleted = defaults.object(forKey: Keys.skipReminderWhenCompleted) as? Bool ?? true
+        textSizePreference = AppTextSizePreference(
+            rawValue: defaults.string(forKey: Keys.textSizePreference) ?? ""
+        ) ?? .standard
     }
 }

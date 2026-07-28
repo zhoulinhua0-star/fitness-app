@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-struct SettingsView: View {
+struct NotificationSettingsView: View {
     @Environment(\.openURL) private var openURL
     @Query private var workoutDays: [WorkoutDay]
     @State private var settings = AppSettings.shared
@@ -10,15 +10,6 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("训练") {
-                Stepper(
-                    "默认休息时长：\(settings.defaultRestSeconds) 秒",
-                    value: $settings.defaultRestSeconds,
-                    in: 30...300,
-                    step: 15
-                )
-            }
-
             Section {
                 Toggle("休息结束提醒", isOn: $settings.restNotificationsEnabled)
 
@@ -65,19 +56,8 @@ struct SettingsView: View {
                 Text("设置会自动保存。训练已经开始时，当天的计划提醒也会暂停。")
             }
 
-            Section("关于") {
-                HStack {
-                    Text("版本")
-                    Spacer()
-                    Text(appVersion)
-                        .foregroundStyle(.secondary)
-                }
-                Text("训练数据与通知计划均保存在你的设备上。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
-        .navigationTitle("通知与训练")
+        .navigationTitle("通知与提醒")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: reminderSettingsKey) {
             await refreshAuthorizationState()
@@ -230,14 +210,11 @@ struct SettingsView: View {
         statusSymbol == "exclamationmark.circle" ? Theme.Color.accent : Theme.Color.textSecondary
     }
 
-    private var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-    }
 }
 
 #Preview {
     NavigationStack {
-        SettingsView()
+        NotificationSettingsView()
     }
     .modelContainer(for: [WorkoutDay.self, Exercise.self], inMemory: true)
 }

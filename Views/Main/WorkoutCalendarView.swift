@@ -71,16 +71,17 @@ struct WorkoutCalendarView: View {
     private var header: some View {
         ZStack {
             Text("训练日历")
-                .font(.system(size: 18, weight: .bold))
+                .font(.headline)
                 .foregroundStyle(Theme.Color.textPrimary)
             HStack {
                 Button { dismiss() } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
+                        .appScaledFont(size: 14, relativeTo: .subheadline, weight: .bold)
                         .foregroundStyle(Theme.Color.textPrimary)
                         .frame(width: 34, height: 34)
                         .background(Theme.Color.surfaceMuted,
                                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .contentShape(Rectangle().inset(by: -5))
                 }
                 .buttonStyle(.plain)
                 Spacer()
@@ -93,7 +94,7 @@ struct WorkoutCalendarView: View {
         HStack(spacing: 0) {
             ForEach(weekdaySymbols, id: \.self) { s in
                 Text(s)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .frame(maxWidth: .infinity)
             }
@@ -104,7 +105,7 @@ struct WorkoutCalendarView: View {
     private var monthNav: some View {
         HStack {
             Text(monthTitle)
-                .font(.display(22, weight: .bold))
+                .font(.displayMetricSmall)
                 .foregroundStyle(Theme.Color.textPrimary)
             Spacer()
             monthButton(systemName: "chevron.left") { changeMonth(-1) }
@@ -116,10 +117,11 @@ struct WorkoutCalendarView: View {
     private func monthButton(systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 13, weight: .bold))
+                .appScaledFont(size: 13, relativeTo: .caption, weight: .bold)
                 .foregroundStyle(Theme.Color.textSecondary)
                 .frame(width: 32, height: 32)
                 .background(Theme.Color.surfaceMuted, in: Circle())
+                .contentShape(Rectangle().inset(by: -6))
         }
         .buttonStyle(.plain)
     }
@@ -163,13 +165,13 @@ struct WorkoutCalendarView: View {
                 .frame(width: 40, height: 40)
                 .overlay {
                     Text("\(day)")
-                        .font(.system(size: 16, weight: isToday ? .bold : .medium))
+                        .font(.body.weight(isToday ? .bold : .medium))
                         .foregroundStyle(textColor)
                 }
 
             if completed {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 9, weight: .black))
+                    .font(.caption2.weight(.black))
                     .foregroundStyle(.white)
                     .frame(width: 17, height: 17)
                     .background(Theme.Color.success, in: Circle())
@@ -186,10 +188,10 @@ struct WorkoutCalendarView: View {
     private var footer: some View {
         HStack(spacing: 6) {
             Image(systemName: "flame.fill")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.Color.accent)
             Text("本月完成 \(monthCompletedCount) 次训练")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .padding(.vertical, Theme.Spacing.l)

@@ -33,7 +33,7 @@ struct BentoDayCard: View {
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("\(exerciseCount)")
-                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .foregroundColor(.primary)
                         Text("个动作")
                             .font(.caption)

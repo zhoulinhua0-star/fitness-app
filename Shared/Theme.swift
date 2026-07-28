@@ -86,14 +86,61 @@ enum Theme {
 // MARK: - Typography
 
 extension Font {
-    /// Serif display face (New York) — captures Tiimo's elegant headers.
-    static func display(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+    /// Semantic New York display roles. Using text styles keeps the hierarchy
+    /// responsive to both the system Dynamic Type setting and RepDay's text-size preference.
+    static let displayLarge = Font.system(.title, design: .serif, weight: .bold)
+    static let displayMedium = Font.system(.title2, design: .serif, weight: .bold)
+    static let displayMetricLarge = Font.system(.largeTitle, design: .serif, weight: .bold)
+    static let displayMetric = Font.system(.title, design: .serif, weight: .bold)
+    static let displayMetricSmall = Font.system(.title2, design: .serif, weight: .bold)
+    static let sectionLabel = Font.caption.weight(.semibold).width(.expanded)
+}
+
+/// Keeps the App Store typography sizes as the `.large` Dynamic Type baseline,
+/// while still scaling with both the system setting and RepDay's text-size preference.
+private struct AppScaledSystemFontModifier: ViewModifier {
+    @ScaledMetric private var scaledSize: CGFloat
+
+    let weight: Font.Weight
+    let design: Font.Design
+    let width: Font.Width
+
+    init(
+        size: CGFloat,
+        relativeTo textStyle: Font.TextStyle,
+        weight: Font.Weight,
+        design: Font.Design,
+        width: Font.Width
+    ) {
+        _scaledSize = ScaledMetric(wrappedValue: size, relativeTo: textStyle)
+        self.weight = weight
+        self.design = design
+        self.width = width
     }
 
-    static let displayLarge = Font.display(34, weight: .bold)
-    static let displayMedium = Font.display(24, weight: .bold)
-    static let sectionLabel = Font.system(size: 13, weight: .semibold).width(.expanded)
+    func body(content: Content) -> some View {
+        content.font(.system(size: scaledSize, weight: weight, design: design).width(width))
+    }
+}
+
+extension View {
+    func appScaledFont(
+        size: CGFloat,
+        relativeTo textStyle: Font.TextStyle,
+        weight: Font.Weight = .regular,
+        design: Font.Design = .default,
+        width: Font.Width = .standard
+    ) -> some View {
+        modifier(
+            AppScaledSystemFontModifier(
+                size: size,
+                relativeTo: textStyle,
+                weight: weight,
+                design: design,
+                width: width
+            )
+        )
+    }
 }
 
 // MARK: - Color helpers

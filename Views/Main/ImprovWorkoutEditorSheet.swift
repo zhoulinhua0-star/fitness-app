@@ -102,7 +102,7 @@ struct ImprovWorkoutEditorSheet: View {
             if activeExercises.isEmpty {
                 VStack(spacing: Theme.Spacing.s) {
                     Image(systemName: "dumbbell")
-                        .font(.system(size: 28, weight: .medium))
+                        .font(.title.weight(.medium))
                         .foregroundStyle(Theme.Color.accent)
                     Text("没有待训练动作")
                         .font(.headline)
@@ -363,7 +363,7 @@ private struct ImprovEditorExerciseRow: View {
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text(exercise.name)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(progressDescription)
                     .font(.caption)
@@ -388,7 +388,7 @@ private struct ImprovEditorExerciseRow: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textSecondary)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())

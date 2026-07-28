@@ -28,7 +28,7 @@ struct WorkoutCompletionSummaryView: View {
                         .font(.displayMedium)
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text("出色完成！继续保持")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
 
@@ -72,7 +72,7 @@ struct WorkoutCompletionSummaryView: View {
                 .foregroundStyle(Theme.Color.textSecondary)
             Spacer()
             Text(value)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(Theme.Color.textPrimary)
         }
     }

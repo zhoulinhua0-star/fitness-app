@@ -16,6 +16,7 @@ import SwiftData
 
 struct TodayWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var workoutDays: [WorkoutDay]
     @Query(filter: #Predicate<Exercise> { $0.isImprov }) private var improvExercises: [Exercise]
     @AppStorage("expandedExerciseName") private var expandedExerciseName: String = ""
@@ -222,40 +223,60 @@ extension TodayWorkoutView {
 
     private var dayHeader: some View {
         VStack(spacing: Theme.Spacing.l) {
-            HStack {
-                CounterPill(
-                    emoji: isImprovActive ? "⚡️" : "🎉",
-                    value: completedExerciseCount,
-                    total: totalExerciseCount
-                )
-                Spacer()
-                if isImprovActive {
-                    Button(action: exitImprov) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "xmark.circle.fill")
-                            Text("结束即兴")
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.Color.textSecondary)
-                        .padding(.horizontal, Theme.Spacing.m)
-                        .padding(.vertical, Theme.Spacing.s)
-                        .background(Theme.Color.surfaceMuted, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            headerActions
 
             VStack(spacing: Theme.Spacing.xs) {
                 Text(headerDayName)
-                    .font(.displayLarge)
+                    .appScaledFont(size: 34, relativeTo: .largeTitle, weight: .bold, design: .serif)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(Date.now, format: .dateTime.month(.wide).day().year())
-                    .font(.system(size: 15, weight: .medium))
+                    .appScaledFont(size: 15, relativeTo: .subheadline, weight: .medium)
                     .foregroundStyle(Theme.Color.textSecondary)
             }
         }
         .padding(.horizontal, Theme.Spacing.xl)
         .padding(.top, Theme.Spacing.s)
+    }
+
+    @ViewBuilder
+    private var headerActions: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                workoutCounter
+                if isImprovActive {
+                    endImprovButton
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HStack {
+                workoutCounter
+                Spacer()
+                if isImprovActive {
+                    endImprovButton
+                }
+            }
+        }
+    }
+
+    private var workoutCounter: some View {
+        CounterPill(
+            emoji: isImprovActive ? "⚡️" : "🎉",
+            value: completedExerciseCount,
+            total: totalExerciseCount
+        )
+    }
+
+    private var endImprovButton: some View {
+        Button(action: exitImprov) {
+            Label("结束即兴", systemImage: "xmark.circle.fill")
+                .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
+                .foregroundStyle(Theme.Color.textSecondary)
+                .padding(.horizontal, Theme.Spacing.m)
+                .frame(minHeight: 44)
+                .background(Theme.Color.surfaceMuted, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var workoutListView: some View {
@@ -281,7 +302,7 @@ extension TodayWorkoutView {
                                 showImprovEditor = true
                             } label: {
                                 Label("编辑", systemImage: "slider.horizontal.3")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
                                     .foregroundStyle(Theme.Color.accent)
                                     .padding(.horizontal, Theme.Spacing.m)
                                     .frame(minHeight: 44)
@@ -319,22 +340,36 @@ extension TodayWorkoutView {
     }
 
     private var progressCard: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-                Text("训练进度")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Theme.Color.textSecondary)
-                Text("\(completedSetCount) / \(totalSetCount) 组")
-                    .font(.display(28, weight: .bold))
-                    .foregroundStyle(Theme.Color.textPrimary)
-                Text("\(completedExerciseCount) / \(totalExerciseCount) 个动作已完成")
-                    .font(.caption)
-                    .foregroundStyle(Theme.Color.textSecondary)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+                    progressSummary
+                    RingProgressView(progress: progress, size: 64)
+                        .frame(maxWidth: .infinity)
+                }
+            } else {
+                HStack {
+                    progressSummary
+                    Spacer()
+                    RingProgressView(progress: progress, size: 64)
+                }
             }
-            Spacer()
-            RingProgressView(progress: progress, size: 64)
         }
         .tiimoCard()
+    }
+
+    private var progressSummary: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            Text("训练进度")
+                .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
+                .foregroundStyle(Theme.Color.textSecondary)
+            Text("\(completedSetCount) / \(totalSetCount) 组")
+                .appScaledFont(size: 28, relativeTo: .title, weight: .bold, design: .serif)
+                .foregroundStyle(Theme.Color.textPrimary)
+            Text("\(completedExerciseCount) / \(totalExerciseCount) 个动作已完成")
+                .font(.caption)
+                .foregroundStyle(Theme.Color.textSecondary)
+        }
     }
 
     private func handleSetProgressChanged() {
@@ -421,10 +456,10 @@ extension TodayWorkoutView {
     private var improvEmptyState: some View {
         VStack(spacing: Theme.Spacing.m) {
             Image(systemName: "plus.circle")
-                .font(.system(size: 30, weight: .medium))
+                .appScaledFont(size: 30, relativeTo: .title, weight: .medium)
                 .foregroundStyle(Theme.Color.accent)
             Text("暂时没有待训练动作")
-                .font(.system(size: 16, weight: .semibold))
+                .appScaledFont(size: 16, relativeTo: .headline, weight: .semibold)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text("打开编辑面板添加动作，或结束本次即兴训练")
                 .font(.subheadline)
@@ -455,11 +490,11 @@ extension TodayWorkoutView {
         return VStack(spacing: Theme.Spacing.l) {
             EmojiTile(emoji: "✅", tint: Theme.Color.tintMint, size: 72)
             Text("今日训练已完成")
-                .font(.displayMedium)
+                .appScaledFont(size: 24, relativeTo: .title2, weight: .bold, design: .serif)
                 .foregroundStyle(Theme.Color.textPrimary)
             VStack(spacing: Theme.Spacing.xs) {
                 Text("即兴训练 · \(exerciseCount) 个动作 · \(setCount) 组")
-                    .font(.system(size: 15, weight: .semibold))
+                    .appScaledFont(size: 15, relativeTo: .subheadline, weight: .semibold)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text("练得不错，好好休息，明天见！")
                     .foregroundStyle(Theme.Color.textSecondary)
@@ -470,7 +505,7 @@ extension TodayWorkoutView {
                     Image(systemName: "arrow.uturn.backward")
                     Text("继续今日计划")
                 }
-                .font(.system(size: 13, weight: .semibold))
+                .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
                 .foregroundStyle(Theme.Color.textSecondary)
                 .padding(.horizontal, Theme.Spacing.m)
                 .padding(.vertical, Theme.Spacing.s)
@@ -497,7 +532,7 @@ extension TodayWorkoutView {
         VStack(spacing: Theme.Spacing.l) {
             EmojiTile(emoji: "🔋", tint: Theme.Color.tintMint, size: 72)
             Text("今天是休息日")
-                .font(.displayMedium)
+                .appScaledFont(size: 24, relativeTo: .title2, weight: .bold, design: .serif)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text("肌肉正在修复，好好放松一下吧！")
                 .foregroundStyle(Theme.Color.textSecondary)
@@ -509,7 +544,7 @@ extension TodayWorkoutView {
         VStack(spacing: Theme.Spacing.l) {
             EmojiTile(emoji: "📋", tint: Theme.Color.surfaceMuted, size: 72)
             Text("今日无训练安排")
-                .font(.displayMedium)
+                .appScaledFont(size: 24, relativeTo: .title2, weight: .bold, design: .serif)
                 .foregroundStyle(Theme.Color.textPrimary)
             Text("去「计划」页面添加一些动作吧")
                 .foregroundStyle(Theme.Color.textSecondary)

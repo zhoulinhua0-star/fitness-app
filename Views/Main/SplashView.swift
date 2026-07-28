@@ -29,11 +29,11 @@ struct SplashView: View {
 
                 VStack(spacing: Theme.Spacing.s) {
                     Text(Brand.name)
-                        .font(.display(40, weight: .bold))
+                        .font(.displayMetricLarge)
                         .foregroundStyle(Theme.Color.textPrimary)
 
                     Text(Brand.slogan)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
             }

@@ -47,12 +47,12 @@ struct SectionPill: View {
     var body: some View {
         HStack(spacing: Theme.Spacing.s) {
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
+                .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
             Text(title.uppercased())
-                .font(.sectionLabel)
+                .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold, width: .expanded)
             if let count {
                 Text("(\(count))")
-                    .font(.system(size: 13, weight: .semibold))
+                    .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
                     .foregroundStyle(Theme.Color.textSecondary)
             }
         }
@@ -74,7 +74,7 @@ struct CounterPill: View {
         HStack(spacing: Theme.Spacing.xs) {
             Text(emoji)
             Text("\(value) / \(total)")
-                .font(.system(size: 15, weight: .semibold))
+                .appScaledFont(size: 15, relativeTo: .subheadline, weight: .semibold)
                 .foregroundStyle(Theme.Color.textPrimary)
         }
         .padding(.horizontal, Theme.Spacing.m)
@@ -89,7 +89,7 @@ struct CounterPill: View {
 struct PrimaryCTAButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 17, weight: .bold))
+            .appScaledFont(size: 17, relativeTo: .headline, weight: .bold)
             .foregroundStyle(Theme.Color.ctaLabel)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
@@ -155,7 +155,7 @@ struct ThemedStepper: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .appScaledFont(size: 12, relativeTo: .caption, weight: .semibold)
                 .foregroundStyle(Theme.Color.textSecondary)
 
             HStack(spacing: Theme.Spacing.m) {
@@ -163,7 +163,7 @@ struct ThemedStepper: View {
                     value = max(range.lowerBound, value - 1)
                 }
                 Text("\(value)")
-                    .font(.system(size: 19, weight: .bold))
+                    .appScaledFont(size: 19, relativeTo: .title3, weight: .bold)
                     .foregroundStyle(Theme.Color.textPrimary)
                     .frame(minWidth: 30)
                     .contentTransition(.numericText())
@@ -181,10 +181,11 @@ struct ThemedStepper: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .bold))
+                .appScaledFont(size: 13, relativeTo: .caption, weight: .bold)
                 .foregroundStyle(enabled ? Theme.Color.accent : Theme.Color.textSecondary.opacity(0.4))
                 .frame(width: 34, height: 34)
                 .background(enabled ? Theme.Color.accentSoft : Theme.Color.surfaceMuted, in: Circle())
+                .contentShape(Rectangle().inset(by: -5))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

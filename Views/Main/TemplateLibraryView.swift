@@ -74,7 +74,7 @@ struct TemplateLibraryView: View {
             EmojiTile(emoji: "🗂️", tint: Theme.Color.tintBlue)
             VStack(alignment: .leading, spacing: 2) {
                 Text("训练模板")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text("建好推日、拉日、腿日等模板，随时套用到任意一天")
                     .font(.caption)
@@ -90,7 +90,7 @@ struct TemplateLibraryView: View {
         VStack(spacing: Theme.Spacing.m) {
             Text("🗒️").font(.system(size: 40))
             Text("还没有模板")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(Theme.Color.textPrimary)
             Text("点击下方「新建模板」创建你的第一套课表")
                 .font(.caption)
@@ -142,23 +142,23 @@ struct TemplateCard: View {
                           tint: Theme.Color.accentSoft)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(template.name)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                         .lineLimit(1)
                     Text("\(template.exercises.count) 个动作 · \(template.totalSets) 组")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
 
             if !previewNames.isEmpty {
                 Text(previewNames.joined(separator: " · ")
                      + (template.exercises.count > 3 ? " …" : ""))
-                    .font(.system(size: 12))
+                    .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
                     .lineLimit(1)
             }
@@ -179,12 +179,12 @@ struct TemplateNameSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.l) {
             Text("模板名称")
-                .font(.system(size: 18, weight: .bold))
+                .font(.headline)
                 .foregroundStyle(Theme.Color.textPrimary)
 
             TextField("", text: $name,
                       prompt: Text("例如：推日 / 拉日 / 腿日").foregroundColor(Theme.Color.textSecondary))
-                .font(.system(size: 16, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(Theme.Color.textPrimary)
                 .focused($focused)
                 .submitLabel(.done)
@@ -297,14 +297,14 @@ struct TemplateEditorView: View {
         VStack(spacing: 3) {
             HStack(alignment: .lastTextBaseline, spacing: 2) {
                 Text(value)
-                    .font(.display(24, weight: .bold))
+                    .font(.displayMetricSmall)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(unit)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -319,7 +319,7 @@ struct TemplateEditorView: View {
                 VStack(spacing: Theme.Spacing.m) {
                     Text("🗒️").font(.system(size: 36))
                     Text("还没有动作")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text("在下方添加动作，构建这套模板")
                         .font(.caption)
@@ -350,7 +350,7 @@ struct TemplateEditorView: View {
 
             VStack(spacing: Theme.Spacing.l) {
                 TextField("", text: $newExerciseName, prompt: Text("输入动作名称").foregroundColor(Theme.Color.textSecondary))
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .focused($nameFieldFocused)
                     .submitLabel(.done)
@@ -365,7 +365,7 @@ struct TemplateEditorView: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             } label: {
                                 Text(pick)
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.caption.weight(.medium))
                                     .foregroundStyle(newExerciseName == pick ? Theme.Color.accent : Theme.Color.textSecondary)
                                     .padding(.horizontal, Theme.Spacing.m)
                                     .padding(.vertical, Theme.Spacing.s)
@@ -469,7 +469,7 @@ struct TemplateExerciseEditorCard: View {
                 EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
 
                 TextField("动作名称", text: $exercise.name)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
 
                 Menu {
@@ -478,10 +478,11 @@ struct TemplateExerciseEditorCard: View {
                     Button(role: .destructive, action: onDelete) { Label("删除动作", systemImage: "trash") }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
+                        .appScaledFont(size: 16, relativeTo: .body, weight: .semibold)
                         .foregroundStyle(Theme.Color.textSecondary)
                         .frame(width: 32, height: 32)
                         .background(Theme.Color.surfaceMuted, in: Circle())
+                        .contentShape(Rectangle().inset(by: -6))
                 }
             }
 
@@ -493,10 +494,10 @@ struct TemplateExerciseEditorCard: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
                     Text("总计")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                     Text("\(exercise.sets * exercise.reps) 次")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(Theme.Color.accent)
                 }
             }

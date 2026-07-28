@@ -3,6 +3,7 @@ import SwiftData
 
 struct ExpandableExerciseRow: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var exercise: Exercise
     let session: WorkoutSession
     let isExpanded: Bool
@@ -95,38 +96,57 @@ struct ExpandableExerciseRow: View {
     }
     
     private var headerContent: some View {
-        HStack(spacing: Theme.Spacing.m) {
-            EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: Theme.Spacing.m) {
+                    HStack(alignment: .top, spacing: Theme.Spacing.m) {
+                        EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+                        exerciseTextContent
+                        CircleCheck(isComplete: isFullyCompleted)
+                    }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(exercise.name)
-                    .font(.system(size: 17, weight: .semibold))
-                    .strikethrough(isFullyCompleted, color: Theme.Color.textSecondary)
-                    .foregroundStyle(isFullyCompleted ? Theme.Color.textSecondary : Theme.Color.textPrimary)
-
-                Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.Color.textSecondary)
-
-                if let lastTimeSummary {
-                    Text(lastTimeSummary)
-                        .font(.caption)
-                        .foregroundStyle(Theme.Color.textSecondary)
+                    if let timer = activeRestTimer, !isFullyCompleted {
+                        RestTimerBadge(endDate: timer.endDate)
+                    }
                 }
+            } else {
+                HStack(spacing: Theme.Spacing.m) {
+                    EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+                    exerciseTextContent
+                    Spacer(minLength: 8)
 
-                ProgressView(value: exercise.setProgress)
-                    .tint(Theme.Color.accent)
-                    .animation(nil, value: exercise.setProgress)
+                    if let timer = activeRestTimer, !isFullyCompleted {
+                        RestTimerBadge(endDate: timer.endDate)
+                    }
+
+                    CircleCheck(isComplete: isFullyCompleted)
+                }
             }
-
-            Spacer(minLength: 8)
-
-            if let timer = activeRestTimer, !isFullyCompleted {
-                RestTimerBadge(endDate: timer.endDate)
-            }
-
-            CircleCheck(isComplete: isFullyCompleted)
         }
+    }
+
+    private var exerciseTextContent: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(exercise.name)
+                .appScaledFont(size: 17, relativeTo: .headline, weight: .semibold)
+                .strikethrough(isFullyCompleted, color: Theme.Color.textSecondary)
+                .foregroundStyle(isFullyCompleted ? Theme.Color.textSecondary : Theme.Color.textPrimary)
+
+            Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
+                .font(.subheadline)
+                .foregroundStyle(Theme.Color.textSecondary)
+
+            if let lastTimeSummary {
+                Text(lastTimeSummary)
+                    .font(.caption)
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
+
+            ProgressView(value: exercise.setProgress)
+                .tint(Theme.Color.accent)
+                .animation(nil, value: exercise.setProgress)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private var setPanel: some View {
@@ -159,7 +179,7 @@ struct ExpandableExerciseRow: View {
                     onUseToday: { saveTodayRestOverride($0) },
                     onSaveToPlan: { saveRestDurationToPlan($0) }
                 )
-                .presentationDetents([.height(390)])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
             }
             
@@ -455,53 +475,58 @@ private struct RestDurationPickerSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.l) {
-            Text("设置休息时长")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(Theme.Color.textPrimary)
+        ScrollView {
+            VStack(spacing: Theme.Spacing.l) {
+                Text("设置休息时长")
+                    .appScaledFont(size: 18, relativeTo: .headline, weight: .bold)
+                    .foregroundStyle(Theme.Color.textPrimary)
 
-            Text(formattedDuration(selectedSeconds))
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(Theme.Color.accent)
+                Text(formattedDuration(selectedSeconds))
+                    .appScaledFont(size: 42, relativeTo: .largeTitle, weight: .bold, design: .rounded)
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.Color.accent)
 
-            HStack(spacing: Theme.Spacing.s) {
-                ForEach(presets, id: \.self) { seconds in
-                    Button(shortDuration(seconds)) {
-                        selectedSeconds = seconds
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 64), spacing: Theme.Spacing.s)],
+                    spacing: Theme.Spacing.s
+                ) {
+                    ForEach(presets, id: \.self) { seconds in
+                        Button(shortDuration(seconds)) {
+                            selectedSeconds = seconds
+                        }
+                        .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
+                        .foregroundStyle(selectedSeconds == seconds ? Color.white : Theme.Color.textSecondary)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(
+                            selectedSeconds == seconds ? Theme.Color.accent : Theme.Color.surfaceMuted,
+                            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        )
                     }
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(selectedSeconds == seconds ? Color.white : Theme.Color.textSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(
-                        selectedSeconds == seconds ? Theme.Color.accent : Theme.Color.surfaceMuted,
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
                 }
-            }
 
-            Stepper("每次调整 15 秒", value: $selectedSeconds, in: 30...300, step: 15)
-                .font(.subheadline)
+                Stepper("每次调整 15 秒", value: $selectedSeconds, in: 30...300, step: 15)
+                    .font(.subheadline)
 
-            VStack(spacing: Theme.Spacing.s) {
-                Button("仅本次训练") {
-                    onUseToday(selectedSeconds)
-                    dismiss()
-                }
-                .buttonStyle(.primaryCTA)
-
-                if canSaveToPlan {
-                    Button("保存到训练计划") {
-                        onSaveToPlan(selectedSeconds)
+                VStack(spacing: Theme.Spacing.s) {
+                    Button("仅本次训练") {
+                        onUseToday(selectedSeconds)
                         dismiss()
                     }
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.Color.accent)
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .buttonStyle(.primaryCTA)
+
+                    if canSaveToPlan {
+                        Button("保存到训练计划") {
+                            onSaveToPlan(selectedSeconds)
+                            dismiss()
+                        }
+                        .appScaledFont(size: 15, relativeTo: .subheadline, weight: .semibold)
+                        .foregroundStyle(Theme.Color.accent)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                    }
                 }
             }
+            .padding(Theme.Spacing.xl)
         }
-        .padding(Theme.Spacing.xl)
         .background(Theme.Color.background.ignoresSafeArea())
     }
 

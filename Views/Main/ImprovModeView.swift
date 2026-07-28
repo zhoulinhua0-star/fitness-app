@@ -92,7 +92,7 @@ private struct MuscleGroupChip: View {
             Text(group.emoji)
                 .font(.system(size: 30))
             Text(group.name)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(isSelected ? Theme.Color.accent : Theme.Color.textPrimary)
         }
         .frame(maxWidth: .infinity)
@@ -128,14 +128,14 @@ private struct ExerciseSuggestionRow: View {
                 EmojiTile(emoji: ExerciseEmoji.forName(name), tint: groupTint, size: 44)
 
                 Text(name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
 
                 Spacer()
 
                 Button(action: onToggle) {
                     Image(systemName: isAdded ? "checkmark.circle.fill" : "plus.circle")
-                        .font(.system(size: 26))
+                        .font(.title2)
                         .foregroundStyle(isAdded ? Theme.Color.success : Theme.Color.accent)
                         .contentTransition(.symbolEffect(.replace))
                         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAdded)
@@ -299,7 +299,7 @@ struct ImprovModeView: View {
                             .offset(y: questionAppeared ? 0 : 12)
 
                         Text("选择今天想练的部位")
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(Theme.Color.textSecondary)
                             .opacity(questionAppeared ? 1 : 0)
                     }
@@ -445,7 +445,7 @@ struct ImprovModeView: View {
                         prompt: Text("输入动作名称，如「农夫行走」")
                             .foregroundColor(Theme.Color.textSecondary)
                     )
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .focused($customFieldFocused)
                     .submitLabel(.done)
@@ -459,7 +459,7 @@ struct ImprovModeView: View {
 
                     Button(action: addCustomExercise) {
                         Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.headline)
                             .foregroundStyle(Theme.Color.ctaLabel)
                             .frame(width: 48, height: 48)
                             .background(
@@ -486,14 +486,14 @@ struct ImprovModeView: View {
                 EmojiTile(emoji: ExerciseEmoji.forName(entry.name), tint: entry.groupTint, size: 44)
 
                 Text(entry.name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
 
                 Spacer()
 
                 Button { removeEntry(entry) } label: {
                     Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.title2)
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
                 .buttonStyle(.plain)
@@ -520,10 +520,10 @@ struct ImprovModeView: View {
         HStack(spacing: Theme.Spacing.l) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("已选")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
                 Text("\(sessionExercises.count) 个动作")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.headline)
                     .foregroundStyle(Theme.Color.textPrimary)
             }
 
@@ -537,7 +537,7 @@ struct ImprovModeView: View {
                     Text("开始训练")
                     Image(systemName: "arrow.right")
                 }
-                .font(.system(size: 16, weight: .bold))
+                .font(.body.weight(.bold))
                 .foregroundStyle(Theme.Color.ctaLabel)
                 .padding(.horizontal, Theme.Spacing.xl)
                 .padding(.vertical, 14)

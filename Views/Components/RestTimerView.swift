@@ -13,12 +13,12 @@ struct RestTimerView: View {
                     Image(systemName: "timer")
                         .foregroundStyle(Theme.Color.accent)
                     Text("休息 \(formattedTime(remaining))")
-                        .font(.system(size: 14, weight: .semibold))
+                        .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
                         .monospacedDigit()
                         .foregroundStyle(Theme.Color.textPrimary)
                     Spacer()
                     Button("跳过", action: onSkip)
-                        .font(.system(size: 14, weight: .semibold))
+                        .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
                         .foregroundStyle(Theme.Color.accent)
                         .frame(minWidth: 44, minHeight: 44)
                 }
@@ -40,7 +40,7 @@ struct RestTimerView: View {
             onEndDateChanged(max(endDate.addingTimeInterval(delta), Date().addingTimeInterval(1)))
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
-        .font(.system(size: 13, weight: .semibold))
+        .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
         .foregroundStyle(Theme.Color.accent)
         .frame(maxWidth: .infinity, minHeight: 44)
         .background(Theme.Color.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -60,7 +60,7 @@ struct RestTimerBadge: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let remaining = max(0, endDate.timeIntervalSince(context.date))
             Label(formattedTime(remaining), systemImage: "timer")
-                .font(.system(size: 12, weight: .semibold))
+                .appScaledFont(size: 12, relativeTo: .caption, weight: .semibold)
                 .monospacedDigit()
                 .foregroundStyle(Theme.Color.accent)
                 .padding(.horizontal, 9)
