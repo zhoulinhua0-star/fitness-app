@@ -6,6 +6,9 @@ enum WidgetDataStore {
     private enum Keys {
         static let completedSets = "widgetCompletedSets"
         static let totalSets = "widgetTotalSets"
+        static let completedCardio = "widgetCompletedCardio"
+        static let totalCardio = "widgetTotalCardio"
+        static let cardioDurationSeconds = "widgetCardioDurationSeconds"
         static let completedExercises = "widgetCompletedExercises"
         static let totalExercises = "widgetTotalExercises"
         static let dayName = "widgetDayName"
@@ -26,6 +29,9 @@ enum WidgetDataStore {
     struct TodaySnapshot {
         let completedSets: Int
         let totalSets: Int
+        let completedCardio: Int
+        let totalCardio: Int
+        let cardioDurationSeconds: Int
         let completedExercises: Int
         let totalExercises: Int
         let dayName: String
@@ -39,6 +45,9 @@ enum WidgetDataStore {
         guard let defaults = sharedDefaults else { return }
         defaults.set(today.completedSets, forKey: Keys.completedSets)
         defaults.set(today.totalSets, forKey: Keys.totalSets)
+        defaults.set(today.completedCardio, forKey: Keys.completedCardio)
+        defaults.set(today.totalCardio, forKey: Keys.totalCardio)
+        defaults.set(today.cardioDurationSeconds, forKey: Keys.cardioDurationSeconds)
         defaults.set(today.completedExercises, forKey: Keys.completedExercises)
         defaults.set(today.totalExercises, forKey: Keys.totalExercises)
         defaults.set(today.dayName, forKey: Keys.dayName)
@@ -61,6 +70,18 @@ enum WidgetDataStore {
     
     static var totalSets: Int {
         sharedDefaults?.integer(forKey: Keys.totalSets) ?? 0
+    }
+
+    static var completedCardio: Int {
+        sharedDefaults?.integer(forKey: Keys.completedCardio) ?? 0
+    }
+
+    static var totalCardio: Int {
+        sharedDefaults?.integer(forKey: Keys.totalCardio) ?? 0
+    }
+
+    static var cardioDurationSeconds: Int {
+        sharedDefaults?.integer(forKey: Keys.cardioDurationSeconds) ?? 0
     }
     
     static var completedExercises: Int {
@@ -108,7 +129,8 @@ enum WidgetDataStore {
     }
     
     static var progress: Double {
-        guard totalSets > 0 else { return 0 }
-        return Double(completedSets) / Double(totalSets)
+        let plannedUnits = totalSets + totalCardio
+        guard plannedUnits > 0 else { return 0 }
+        return Double(completedSets + completedCardio) / Double(plannedUnits)
     }
 }

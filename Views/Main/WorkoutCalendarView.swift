@@ -25,10 +25,10 @@ struct WorkoutCalendarView: View {
 
     private let weekdaySymbols = ["一", "二", "三", "四", "五", "六", "日"]
 
-    /// Days with any logged sets → soft grey circle.
+    /// Days with any logged strength or cardio work → soft grey circle.
     private var trainedDates: Set<Date> {
         Set(sessions
-            .filter { $0.completedSetCount > 0 }
+            .filter { $0.completedSetCount > 0 || $0.completedCardioCount > 0 }
             .map { calendar.startOfDay(for: $0.sessionDate) })
     }
 

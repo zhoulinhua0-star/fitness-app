@@ -42,7 +42,10 @@ enum WorkoutHistoryManager {
             sessionDate: startOfDay(),
             dayName: dayName,
             plannedSetCount: plannedSetCount(for: exercises),
-            completedSetCount: completedSetCount(for: exercises)
+            completedSetCount: completedSetCount(for: exercises),
+            plannedCardioCount: plannedCardioCount(for: exercises),
+            completedCardioCount: completedCardioCount(for: exercises),
+            completedCardioDurationSeconds: completedCardioDuration(for: exercises)
         )
         context.insert(session)
         return session
@@ -58,6 +61,7 @@ enum WorkoutHistoryManager {
 
     static func plannedSetCount(for exercises: [Exercise]) -> Int {
         exercises.reduce(0) { total, exercise in
+            guard !exercise.isCardio else { return total }
             if exercise.isImprov && exercise.isRemovedFromImprov {
                 return total + exercise.effectiveCompletedSetCount
             }
@@ -66,7 +70,27 @@ enum WorkoutHistoryManager {
     }
 
     static func completedSetCount(for exercises: [Exercise]) -> Int {
-        exercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+        exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+    }
+
+    static func plannedCardioCount(for exercises: [Exercise]) -> Int {
+        exercises.reduce(0) { total, exercise in
+            guard exercise.isCardio else { return total }
+            if exercise.isImprov && exercise.isRemovedFromImprov {
+                return total + (exercise.isFullyCompletedToday ? 1 : 0)
+            }
+            return total + 1
+        }
+    }
+
+    static func completedCardioCount(for exercises: [Exercise]) -> Int {
+        exercises.filter { $0.isCardio && $0.isFullyCompletedToday }.count
+    }
+
+    static func completedCardioDuration(for exercises: [Exercise], at date: Date = .now) -> Int {
+        exercises
+            .filter(\.isCardio)
+            .reduce(0) { $0 + $1.cardioElapsedSeconds(at: date) }
     }
 
     static func syncSessionMetadata(session: WorkoutSession, plan: WorkoutDay) {
@@ -76,10 +100,15 @@ enum WorkoutHistoryManager {
     static func syncSessionMetadata(session: WorkoutSession, dayName: String, exercises: [Exercise]) {
         session.plannedSetCount = plannedSetCount(for: exercises)
         session.completedSetCount = completedSetCount(for: exercises)
+        session.plannedCardioCount = plannedCardioCount(for: exercises)
+        session.completedCardioCount = completedCardioCount(for: exercises)
+        session.completedCardioDurationSeconds = completedCardioDuration(for: exercises)
         session.dayName = dayName
 
         let countedExercises = exercises.filter {
-            !$0.isRemovedFromImprov || $0.effectiveCompletedSetCount > 0
+            !$0.isRemovedFromImprov ||
+                $0.effectiveCompletedSetCount > 0 ||
+                $0.isFullyCompletedToday
         }
         let allDone = !countedExercises.isEmpty &&
             countedExercises.allSatisfy {
@@ -116,6 +145,40 @@ enum WorkoutHistoryManager {
             .max(by: { $0.setIndex < $1.setIndex }) else { return }
         context.delete(log)
         session.setLogs.removeAll { $0.persistentModelID == log.persistentModelID }
+    }
+
+    static func logCardio(
+        context: ModelContext,
+        session: WorkoutSession,
+        exercise: Exercise,
+        durationSeconds: Int
+    ) {
+        if let existing = session.cardioLogs.first(where: { $0.exerciseName == exercise.name }) {
+            existing.targetDurationSeconds = exercise.targetDurationSeconds
+            existing.durationSeconds = durationSeconds
+            existing.loggedAt = .now
+            return
+        }
+
+        let log = CardioLog(
+            exerciseName: exercise.name,
+            targetDurationSeconds: exercise.targetDurationSeconds,
+            durationSeconds: durationSeconds
+        )
+        log.session = session
+        session.cardioLogs.append(log)
+    }
+
+    static func removeCardioLog(
+        context: ModelContext,
+        session: WorkoutSession,
+        exerciseName: String
+    ) {
+        let logs = session.cardioLogs.filter { $0.exerciseName == exerciseName }
+        for log in logs {
+            context.delete(log)
+        }
+        session.cardioLogs.removeAll { $0.exerciseName == exerciseName }
     }
     
     static func logRemainingSets(
@@ -170,6 +233,24 @@ enum WorkoutHistoryManager {
         }
         return nil
     }
+
+    static func lastCardioPerformanceSummary(context: ModelContext, exerciseName: String) -> String? {
+        let todayStart = startOfDay()
+        var descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate { $0.sessionDate < todayStart },
+            sortBy: [SortDescriptor(\.sessionDate, order: .reverse)]
+        )
+        descriptor.fetchLimit = 14
+
+        guard let sessions = try? context.fetch(descriptor) else { return nil }
+        for session in sessions {
+            guard let log = session.cardioLogs
+                .filter({ $0.exerciseName == exerciseName })
+                .max(by: { $0.loggedAt < $1.loggedAt }) else { continue }
+            return "上次: \(ExerciseFormatting.shortDuration(log.durationSeconds))"
+        }
+        return nil
+    }
     
     static func fetchRecentSessions(context: ModelContext, limit: Int = 30) -> [WorkoutSession] {
         var descriptor = FetchDescriptor<WorkoutSession>(
@@ -188,7 +269,7 @@ enum WorkoutHistoryManager {
         var checkDate = startOfDay()
         
         if let todaySession = sessions.first(where: { calendar.isDate($0.sessionDate, inSameDayAs: checkDate) }) {
-            if todaySession.plannedSetCount == 0 || todaySession.completionRate >= threshold {
+            if !todaySession.hasPlannedWork || todaySession.completionRate >= threshold {
                 streak += 1
             } else {
                 return 0
@@ -202,7 +283,7 @@ enum WorkoutHistoryManager {
         
         while true {
             if let session = sessions.first(where: { calendar.isDate($0.sessionDate, inSameDayAs: checkDate) }) {
-                if session.plannedSetCount > 0 && session.completionRate >= threshold {
+                if session.hasPlannedWork && session.completionRate >= threshold {
                     streak += 1
                     guard let previousDay = calendar.date(byAdding: .day, value: -1, to: checkDate) else { break }
                     checkDate = previousDay

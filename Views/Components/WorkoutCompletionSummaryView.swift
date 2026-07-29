@@ -8,6 +8,9 @@ import SwiftUI
 struct WorkoutCompletionSummaryView: View {
     let completedSets: Int
     let totalSets: Int
+    let completedCardio: Int
+    let totalCardio: Int
+    let cardioDurationSeconds: Int
     let completedExercises: Int
     let totalExercises: Int
     let onDismiss: () -> Void
@@ -33,8 +36,17 @@ struct WorkoutCompletionSummaryView: View {
                 }
 
                 VStack(spacing: Theme.Spacing.s) {
-                    summaryRow(label: "完成组数", value: "\(completedSets) / \(totalSets) 组")
-                    Divider().background(Theme.Color.hairline)
+                    if totalSets > 0 {
+                        summaryRow(label: "完成组数", value: "\(completedSets) / \(totalSets) 组")
+                        Divider().background(Theme.Color.hairline)
+                    }
+                    if totalCardio > 0 {
+                        summaryRow(
+                            label: "完成有氧",
+                            value: "\(completedCardio) / \(totalCardio) 项 · \(cardioDurationSeconds / 60) 分钟"
+                        )
+                        Divider().background(Theme.Color.hairline)
+                    }
                     summaryRow(label: "完成动作", value: "\(completedExercises) / \(totalExercises) 个")
                 }
                 .padding(Theme.Spacing.l)

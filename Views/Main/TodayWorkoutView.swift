@@ -71,7 +71,7 @@ struct TodayWorkoutView: View {
     /// Removed exercises count only when the user completed at least one set.
     var countedExercises: [Exercise] {
         sessionExercises.filter {
-            !$0.isRemovedFromImprov || $0.effectiveCompletedSetCount > 0
+            !$0.isRemovedFromImprov || $0.effectiveCompletedSetCount > 0 || $0.isFullyCompletedToday
         }
     }
 
@@ -97,15 +97,28 @@ struct TodayWorkoutView: View {
         WorkoutHistoryManager.plannedSetCount(for: sessionExercises)
     }
 
+    var completedCardioCount: Int {
+        WorkoutHistoryManager.completedCardioCount(for: sessionExercises)
+    }
+
+    var totalCardioCount: Int {
+        WorkoutHistoryManager.plannedCardioCount(for: sessionExercises)
+    }
+
+    var cardioDurationSeconds: Int {
+        WorkoutHistoryManager.completedCardioDuration(for: sessionExercises)
+    }
+
     var progress: Double {
-        guard totalSetCount > 0 else { return 0 }
-        return Double(completedSetCount) / Double(totalSetCount)
+        let totalUnits = totalSetCount + totalCardioCount
+        guard totalUnits > 0 else { return 0 }
+        return Double(completedSetCount + completedCardioCount) / Double(totalUnits)
     }
 
     /// Re-runs session setup whenever the active workout meaningfully changes
     /// (day rollover, plan edits, or improv exercises being injected/cleared).
     private var refreshKey: String {
-        "\(headerDayName)#\(activeExercises.count)#\(totalSetCount)#\(isImprovActive)#\(isDayFinishedToday)"
+        "\(headerDayName)#\(activeExercises.count)#\(totalSetCount)#\(totalCardioCount)#\(isImprovActive)#\(isDayFinishedToday)"
     }
 
     var body: some View {
@@ -133,6 +146,9 @@ struct TodayWorkoutView: View {
                     WorkoutCompletionSummaryView(
                         completedSets: completedSetCount,
                         totalSets: totalSetCount,
+                        completedCardio: completedCardioCount,
+                        totalCardio: totalCardioCount,
+                        cardioDurationSeconds: cardioDurationSeconds,
                         completedExercises: completedExerciseCount,
                         totalExercises: totalExerciseCount,
                         onDismiss: {
@@ -363,9 +379,21 @@ extension TodayWorkoutView {
             Text("训练进度")
                 .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
                 .foregroundStyle(Theme.Color.textSecondary)
-            Text("\(completedSetCount) / \(totalSetCount) 组")
-                .appScaledFont(size: 28, relativeTo: .title, weight: .bold, design: .serif)
-                .foregroundStyle(Theme.Color.textPrimary)
+            if totalSetCount > 0 {
+                Text("\(completedSetCount) / \(totalSetCount) 组")
+                    .appScaledFont(size: 28, relativeTo: .title, weight: .bold, design: .serif)
+                    .foregroundStyle(Theme.Color.textPrimary)
+            }
+            if totalCardioCount > 0 {
+                Text("\(completedCardioCount) / \(totalCardioCount) 项有氧 · \(cardioDurationSeconds / 60) 分钟")
+                    .appScaledFont(
+                        size: totalSetCount > 0 ? 15 : 28,
+                        relativeTo: totalSetCount > 0 ? .subheadline : .title,
+                        weight: totalSetCount > 0 ? .semibold : .bold,
+                        design: totalSetCount > 0 ? .default : .serif
+                    )
+                    .foregroundStyle(totalSetCount > 0 ? Theme.Color.textSecondary : Theme.Color.textPrimary)
+            }
             Text("\(completedExerciseCount) / \(totalExerciseCount) 个动作已完成")
                 .font(.caption)
                 .foregroundStyle(Theme.Color.textSecondary)
@@ -417,7 +445,7 @@ extension TodayWorkoutView {
     /// hidden behind `dayCompletedView` until tomorrow. If nothing was
     /// logged, this is just backing out — the plan reappears as before.
     private func exitImprov() {
-        let trainedToday = completedSetCount > 0
+        let trainedToday = completedSetCount > 0 || completedCardioCount > 0
 
         if trainedToday, let session = todaySession {
             // Freeze the improv record before the exercises are deleted —
@@ -485,7 +513,12 @@ extension TodayWorkoutView {
     private var dayCompletedView: some View {
         let session = WorkoutHistoryManager.fetchTodaySession(context: modelContext)
         let setCount = session?.completedSetCount ?? 0
-        let exerciseCount = Set((session?.setLogs ?? []).map(\.exerciseName)).count
+        let cardioCount = session?.completedCardioCount ?? 0
+        let cardioMinutes = (session?.completedCardioDurationSeconds ?? 0) / 60
+        let exerciseCount = Set(
+            (session?.setLogs ?? []).map(\.exerciseName) +
+            (session?.cardioLogs ?? []).map(\.exerciseName)
+        ).count
 
         return VStack(spacing: Theme.Spacing.l) {
             EmojiTile(emoji: "✅", tint: Theme.Color.tintMint, size: 72)
@@ -493,7 +526,12 @@ extension TodayWorkoutView {
                 .appScaledFont(size: 24, relativeTo: .title2, weight: .bold, design: .serif)
                 .foregroundStyle(Theme.Color.textPrimary)
             VStack(spacing: Theme.Spacing.xs) {
-                Text("即兴训练 · \(exerciseCount) 个动作 · \(setCount) 组")
+                Text(dayCompletedSummary(
+                    exerciseCount: exerciseCount,
+                    setCount: setCount,
+                    cardioCount: cardioCount,
+                    cardioMinutes: cardioMinutes
+                ))
                     .appScaledFont(size: 15, relativeTo: .subheadline, weight: .semibold)
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text("练得不错，好好休息，明天见！")
@@ -515,6 +553,18 @@ extension TodayWorkoutView {
             .padding(.top, Theme.Spacing.m)
         }
         .padding(Theme.Spacing.xl)
+    }
+
+    private func dayCompletedSummary(
+        exerciseCount: Int,
+        setCount: Int,
+        cardioCount: Int,
+        cardioMinutes: Int
+    ) -> String {
+        var parts = ["即兴训练", "\(exerciseCount) 个动作"]
+        if setCount > 0 { parts.append("\(setCount) 组") }
+        if cardioCount > 0 { parts.append("\(cardioMinutes) 分钟有氧") }
+        return parts.joined(separator: " · ")
     }
 
     /// Opt back into today's plan for a second workout — clears the stamp;

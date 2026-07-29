@@ -19,6 +19,9 @@ struct ImprovWorkoutEditorSheet: View {
     @State private var newExerciseName = ""
     @State private var newSets = 3
     @State private var newReps = 10
+    @State private var newActivityType: ExerciseActivityType = .strength
+    @State private var newDurationSeconds = 20 * 60
+    @State private var showingExercisePicker = false
     @State private var lastRemoved: RemovedSnapshot?
     @State private var undoToken = UUID()
     @FocusState private var nameFieldFocused: Bool
@@ -95,6 +98,12 @@ struct ImprovWorkoutEditorSheet: View {
             }
         }
         .presentationBackground(Theme.Color.background)
+        .sheet(isPresented: $showingExercisePicker) {
+            ExercisePickerSheet(
+                selectedNames: Set(activeExercises.map(\.name)),
+                onSelect: selectDefinition
+            )
+        }
     }
 
     private var workoutSection: some View {
@@ -131,37 +140,26 @@ struct ImprovWorkoutEditorSheet: View {
         } header: {
             Text("本次训练 · \(activeExercises.count) 个动作")
         } footer: {
-            Text("移出已开始的动作时，已完成组会保留")
+            Text("移出已开始的动作时，已完成的训练记录会保留")
         }
     }
 
     private var addExerciseSection: some View {
         Section("添加动作") {
-            Menu {
-                ForEach(ExerciseLibrary.groups) { group in
-                    Menu {
-                        ForEach(group.exercises, id: \.self) { exerciseName in
-                            Button(exerciseName) {
-                                newExerciseName = exerciseName
-                                nameFieldFocused = false
-                            }
-                            .disabled(activeExercises.contains { $0.name == exerciseName })
-                        }
-                    } label: {
-                        Label(group.name, systemImage: "figure.strengthtraining.traditional")
-                    }
-                }
+            Button {
+                showingExercisePicker = true
             } label: {
                 HStack {
                     Label("从动作库选择", systemImage: "books.vertical")
                     Spacer()
-                    Image(systemName: "chevron.up.chevron.down")
+                    Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
                 .foregroundStyle(Theme.Color.accent)
                 .frame(minHeight: 44)
             }
+            .buttonStyle(.plain)
 
             TextField("或输入自定义动作名称", text: $newExerciseName)
                 .focused($nameFieldFocused)
@@ -175,12 +173,24 @@ struct ImprovWorkoutEditorSheet: View {
                     .foregroundStyle(Theme.Color.textSecondary)
             }
 
-            HStack(spacing: Theme.Spacing.xl) {
-                ThemedStepper(title: "训练组数", value: $newSets, range: 1...20)
-                ThemedStepper(title: "每组次数", value: $newReps, range: 1...100)
-                Spacer(minLength: 0)
+            Picker("训练类型", selection: $newActivityType) {
+                ForEach(ExerciseActivityType.allCases) { type in
+                    Text(type.title).tag(type)
+                }
             }
-            .padding(.vertical, Theme.Spacing.s)
+            .pickerStyle(.segmented)
+
+            if newActivityType == .cardio {
+                DurationSettingControl(title: "目标时长", seconds: $newDurationSeconds)
+                    .padding(.vertical, Theme.Spacing.s)
+            } else {
+                HStack(spacing: Theme.Spacing.xl) {
+                    ThemedStepper(title: "训练组数", value: $newSets, range: 1...20)
+                    ThemedStepper(title: "每组次数", value: $newReps, range: 1...100)
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, Theme.Spacing.s)
+            }
 
             Button(action: addExercise) {
                 Label(
@@ -208,16 +218,22 @@ struct ImprovWorkoutEditorSheet: View {
 
         if let removed = removedExerciseWithSameName {
             removed.isRemovedFromImprov = false
-            removed.sets = max(newSets, removed.completedSetCount)
-            removed.reps = newReps
+            removed.activityType = newActivityType
+            removed.trackingMode = newActivityType == .cardio ? .duration : .setsAndReps
+            removed.targetDurationSeconds = newActivityType == .cardio ? newDurationSeconds : 0
+            removed.sets = newActivityType == .cardio ? 0 : max(newSets, removed.completedSetCount)
+            removed.reps = newActivityType == .cardio ? 0 : newReps
             removed.order = activeExercises.count
             persistChanges()
         } else {
             let exercise = Exercise(
                 name: trimmedName,
-                sets: newSets,
-                reps: newReps,
+                sets: newActivityType == .cardio ? 0 : newSets,
+                reps: newActivityType == .cardio ? 0 : newReps,
                 order: activeExercises.count,
+                activityType: newActivityType,
+                trackingMode: newActivityType == .cardio ? .duration : .setsAndReps,
+                targetDurationSeconds: newActivityType == .cardio ? newDurationSeconds : 0,
                 sessionDate: .now,
                 isImprov: true
             )
@@ -228,6 +244,15 @@ struct ImprovWorkoutEditorSheet: View {
         newExerciseName = ""
         nameFieldFocused = false
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func selectDefinition(_ definition: ExerciseDefinition) {
+        newExerciseName = definition.name
+        newActivityType = definition.activityType
+        newSets = definition.defaultSets
+        newReps = definition.defaultReps
+        newDurationSeconds = definition.defaultDurationSeconds
+        nameFieldFocused = false
     }
 
     private func moveExercise(at index: Int, by offset: Int) {
@@ -359,7 +384,11 @@ private struct ImprovEditorExerciseRow: View {
 
     var body: some View {
         HStack(spacing: Theme.Spacing.m) {
-            EmojiTile(emoji: ExerciseEmoji.forName(exercise.name), size: 40)
+            ExerciseIconTile(
+                name: exercise.name,
+                activityType: exercise.activityType,
+                size: 40
+            )
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text(exercise.name)
@@ -399,6 +428,13 @@ private struct ImprovEditorExerciseRow: View {
     }
 
     private var progressDescription: String {
+        if exercise.isCardio {
+            let elapsed = exercise.cardioElapsedSeconds()
+            if exercise.isFullyCompletedToday {
+                return "已完成 · \(ExerciseFormatting.shortDuration(elapsed))"
+            }
+            return "目标 \(ExerciseFormatting.shortDuration(exercise.targetDurationSeconds))"
+        }
         if exercise.effectiveCompletedSetCount > 0 {
             return "已完成 \(exercise.effectiveCompletedSetCount) / \(exercise.sets) 组 · 每组 \(exercise.reps) 次"
         }

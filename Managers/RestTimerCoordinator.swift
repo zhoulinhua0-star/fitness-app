@@ -10,6 +10,17 @@ struct ActiveRestTimer: Equatable {
     var endDate: Date
 }
 
+enum RestCompletionReason: String, Equatable {
+    case elapsed
+    case skipped
+}
+
+struct CompletedRestTimer: Equatable {
+    let id: String
+    let completedAt: Date
+    let reason: RestCompletionReason
+}
+
 struct RestTimerNotice: Equatable, Identifiable {
     enum Kind: Equatable {
         case completed
@@ -29,8 +40,11 @@ final class RestTimerCoordinator {
 
     private static let endDatesKey = "restTimerEndDates"
     private static let exerciseNamesKey = "restTimerExerciseNames"
+    private static let completedDatesKey = "restTimerCompletedDates"
+    private static let completionReasonsKey = "restTimerCompletionReasons"
 
     private(set) var timers: [String: ActiveRestTimer] = [:]
+    private(set) var completions: [String: CompletedRestTimer] = [:]
     private(set) var notice: RestTimerNotice?
 
     private var tickerTask: Task<Void, Never>?
@@ -58,6 +72,20 @@ final class RestTimerCoordinator {
         return timer
     }
 
+    func completion(for id: String, now: Date = .now) -> CompletedRestTimer? {
+        if let completion = completions[id],
+           Calendar.current.isDate(completion.completedAt, inSameDayAs: now) {
+            return completion
+        }
+
+        guard let timer = timers[id],
+              timer.endDate <= now,
+              Calendar.current.isDate(timer.endDate, inSameDayAs: now) else {
+            return nil
+        }
+        return CompletedRestTimer(id: id, completedAt: timer.endDate, reason: .elapsed)
+    }
+
     func register(timerID: String, exerciseName: String) {
         guard var timer = timers[timerID] else { return }
         guard timer.exerciseName != exerciseName else { return }
@@ -77,12 +105,14 @@ final class RestTimerCoordinator {
     }
 
     private func setTimer(timerID: String, exerciseName: String, endDate: Date) {
+        completions.removeValue(forKey: timerID)
         timers[timerID] = ActiveRestTimer(
             id: timerID,
             exerciseName: exerciseName,
             endDate: endDate
         )
         persistTimers()
+        persistCompletions()
         ensureTicker()
         scheduleSystemNotification(for: timers[timerID]!)
     }
@@ -97,13 +127,33 @@ final class RestTimerCoordinator {
 
     func cancel(timerID: String) {
         timers.removeValue(forKey: timerID)
+        completions.removeValue(forKey: timerID)
         persistTimers()
+        persistCompletions()
+        NotificationManager.cancelRestEndNotification(timerID: timerID)
+    }
+
+    func skip(timerID: String) {
+        guard timers.removeValue(forKey: timerID) != nil else { return }
+        completions[timerID] = CompletedRestTimer(
+            id: timerID,
+            completedAt: .now,
+            reason: .skipped
+        )
+        persistTimers()
+        persistCompletions()
         NotificationManager.cancelRestEndNotification(timerID: timerID)
     }
 
     func notificationDelivered(timerID: String, exerciseName: String) {
-        guard timers.removeValue(forKey: timerID) != nil else { return }
+        guard let timer = timers.removeValue(forKey: timerID) else { return }
+        completions[timerID] = CompletedRestTimer(
+            id: timerID,
+            completedAt: timer.endDate,
+            reason: .elapsed
+        )
         persistTimers()
+        persistCompletions()
         presentCompletion(for: exerciseName)
     }
 
@@ -156,19 +206,43 @@ final class RestTimerCoordinator {
         let defaults = UserDefaults.standard
         let storedDates = defaults.dictionary(forKey: Self.endDatesKey) ?? [:]
         let storedNames = defaults.dictionary(forKey: Self.exerciseNamesKey) as? [String: String] ?? [:]
+        let storedCompletedDates = defaults.dictionary(forKey: Self.completedDatesKey) ?? [:]
+        let storedCompletionReasons = defaults.dictionary(forKey: Self.completionReasonsKey) as? [String: String] ?? [:]
         let now = Date()
+
+        completions = storedCompletedDates.reduce(into: [:]) { result, entry in
+            guard let number = entry.value as? NSNumber else { return }
+            let completedAt = Date(timeIntervalSince1970: number.doubleValue)
+            guard Calendar.current.isDate(completedAt, inSameDayAs: now) else { return }
+            let reason = storedCompletionReasons[entry.key]
+                .flatMap(RestCompletionReason.init(rawValue:)) ?? .elapsed
+            result[entry.key] = CompletedRestTimer(
+                id: entry.key,
+                completedAt: completedAt,
+                reason: reason
+            )
+        }
 
         timers = storedDates.reduce(into: [:]) { result, entry in
             guard let number = entry.value as? NSNumber else { return }
             let endDate = Date(timeIntervalSince1970: number.doubleValue)
-            guard endDate > now else { return }
-            result[entry.key] = ActiveRestTimer(
-                id: entry.key,
-                exerciseName: storedNames[entry.key] ?? "当前动作",
-                endDate: endDate
-            )
+            if endDate > now {
+                result[entry.key] = ActiveRestTimer(
+                    id: entry.key,
+                    exerciseName: storedNames[entry.key] ?? "当前动作",
+                    endDate: endDate
+                )
+            } else if Calendar.current.isDate(endDate, inSameDayAs: now),
+                      completions[entry.key] == nil {
+                completions[entry.key] = CompletedRestTimer(
+                    id: entry.key,
+                    completedAt: endDate,
+                    reason: .elapsed
+                )
+            }
         }
         persistTimers()
+        persistCompletions()
     }
 
     private func persistTimers() {
@@ -185,6 +259,26 @@ final class RestTimerCoordinator {
         UserDefaults.standard.set(
             timers.mapValues(\.exerciseName),
             forKey: Self.exerciseNamesKey
+        )
+    }
+
+    private func persistCompletions() {
+        let todayCompletions = completions.filter {
+            Calendar.current.isDateInToday($0.value.completedAt)
+        }
+        if todayCompletions.isEmpty {
+            UserDefaults.standard.removeObject(forKey: Self.completedDatesKey)
+            UserDefaults.standard.removeObject(forKey: Self.completionReasonsKey)
+            return
+        }
+
+        UserDefaults.standard.set(
+            todayCompletions.mapValues { $0.completedAt.timeIntervalSince1970 },
+            forKey: Self.completedDatesKey
+        )
+        UserDefaults.standard.set(
+            todayCompletions.mapValues { $0.reason.rawValue },
+            forKey: Self.completionReasonsKey
         )
     }
 
@@ -214,9 +308,15 @@ final class RestTimerCoordinator {
 
         for timer in expired {
             timers.removeValue(forKey: timer.id)
+            completions[timer.id] = CompletedRestTimer(
+                id: timer.id,
+                completedAt: timer.endDate,
+                reason: .elapsed
+            )
             NotificationManager.cancelRestEndNotification(timerID: timer.id)
         }
         persistTimers()
+        persistCompletions()
 
         guard AppSettings.shared.restNotificationsEnabled else { return }
 

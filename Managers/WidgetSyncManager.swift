@@ -9,7 +9,8 @@ enum WidgetSyncManager {
             WeekPlanSummary.DaySnapshot(
                 dayName: day.dayName,
                 isRestDay: day.isRestDay,
-                totalSets: day.exercises.reduce(0) { $0 + $1.sets },
+                totalSets: day.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets },
+                cardioMinutes: day.exercises.filter(\.isCardio).reduce(0) { $0 + $1.targetDurationSeconds } / 60,
                 exerciseNames: day.exercises
                     .sorted { $0.order < $1.order }
                     .map(\.name)
@@ -32,6 +33,9 @@ enum WidgetSyncManager {
             return WidgetDataStore.TodaySnapshot(
                 completedSets: 0,
                 totalSets: 0,
+                completedCardio: 0,
+                totalCardio: 0,
+                cardioDurationSeconds: 0,
                 completedExercises: 0,
                 totalExercises: 0,
                 dayName: dayName,
@@ -46,6 +50,9 @@ enum WidgetSyncManager {
             return WidgetDataStore.TodaySnapshot(
                 completedSets: 0,
                 totalSets: 0,
+                completedCardio: 0,
+                totalCardio: 0,
+                cardioDurationSeconds: 0,
                 completedExercises: 0,
                 totalExercises: 0,
                 dayName: plan.dayName,
@@ -57,8 +64,13 @@ enum WidgetSyncManager {
         }
         
         let sortedExercises = plan.exercises.sorted { $0.order < $1.order }
-        let completedSets = plan.exercises.reduce(0) { $0 + $1.effectiveCompletedSetCount }
-        let totalSets = plan.exercises.reduce(0) { $0 + $1.sets }
+        let completedSets = plan.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.effectiveCompletedSetCount }
+        let totalSets = plan.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets }
+        let completedCardio = plan.exercises.filter { $0.isCardio && $0.isFullyCompletedToday }.count
+        let totalCardio = plan.exercises.filter(\.isCardio).count
+        let cardioDurationSeconds = plan.exercises
+            .filter(\.isCardio)
+            .reduce(0) { $0 + $1.cardioElapsedSeconds() }
         let completedExercises = plan.exercises.filter { $0.isFullyCompletedToday }.count
         let preview = sortedExercises.prefix(2).map(\.name).joined(separator: " · ")
         let isComplete = !sortedExercises.isEmpty && completedExercises == sortedExercises.count
@@ -66,6 +78,9 @@ enum WidgetSyncManager {
         return WidgetDataStore.TodaySnapshot(
             completedSets: completedSets,
             totalSets: totalSets,
+            completedCardio: completedCardio,
+            totalCardio: totalCardio,
+            cardioDurationSeconds: cardioDurationSeconds,
             completedExercises: completedExercises,
             totalExercises: sortedExercises.count,
             dayName: plan.dayName,

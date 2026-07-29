@@ -9,6 +9,20 @@ import EventKit
 import SwiftData
 import SwiftUI
 
+enum CalendarAuthorizationState: Equatable {
+    case notDetermined
+    case allowed
+    case denied
+    case restricted
+}
+
+enum CalendarSyncResult: Equatable {
+    case success
+    case permissionDenied
+    case restricted
+    case failed
+}
+
 @MainActor
 class CalendarManager {
     static let shared = CalendarManager()
@@ -21,29 +35,44 @@ class CalendarManager {
         return formatter
     }()
     
+    var authorizationState: CalendarAuthorizationState {
+        switch EKEventStore.authorizationStatus(for: .event) {
+        case .fullAccess:
+            return .allowed
+        case .denied:
+            return .denied
+        case .restricted:
+            return .restricted
+        case .notDetermined, .writeOnly:
+            return .notDetermined
+        default:
+            return .notDetermined
+        }
+    }
+
     // 请求权限并同步
-    func requestAccessAndSync(workoutDays: [WorkoutDay]) async -> Bool {
+    func requestAccessAndSync(workoutDays: [WorkoutDay]) async -> CalendarSyncResult {
         do {
-            let granted: Bool
-            // 适配 iOS 17 及以上的最安全权限请求
-            if #available(iOS 17.0, *) {
-                granted = try await eventStore.requestFullAccessToEvents()
-            } else {
-                granted = try await withCheckedThrowingContinuation { continuation in
-                    eventStore.requestAccess(to: .event) { success, error in
-                        if let error = error { continuation.resume(throwing: error) }
-                        else { continuation.resume(returning: success) }
-                    }
+            switch authorizationState {
+            case .denied:
+                return .permissionDenied
+            case .restricted:
+                return .restricted
+            case .allowed:
+                break
+            case .notDetermined:
+                guard try await eventStore.requestFullAccessToEvents() else {
+                    return .permissionDenied
                 }
             }
-            
-            if granted {
-                return try await syncToSystemCalendar(workoutDays: workoutDays)
-            }
-            return false
+
+            eventStore.reset()
+            return try await syncToSystemCalendar(workoutDays: workoutDays)
+                ? .success
+                : .failed
         } catch {
             print("日历操作失败: \(error.localizedDescription)")
-            return false
+            return .failed
         }
     }
     
@@ -100,7 +129,12 @@ class CalendarManager {
                 event.endDate = sysCalendar.date(byAdding: .day, value: 1, to: startOfDay)
                 
                 // 把动作清单写进日历备注
-                let notes = plan.exercises.map { "• \($0.name): \($0.sets)组 × \($0.reps)次" }.joined(separator: "\n")
+                let notes = plan.exercises.map { exercise in
+                    if exercise.isCardio {
+                        return "• \(exercise.name): \(ExerciseFormatting.shortDuration(exercise.targetDurationSeconds))"
+                    }
+                    return "• \(exercise.name): \(exercise.sets)组 × \(exercise.reps)次"
+                }.joined(separator: "\n")
                 event.notes = notes
                 
                 // 逐个保存新日程，不立刻提交

@@ -138,14 +138,22 @@ struct TemplateCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             HStack(spacing: Theme.Spacing.m) {
-                EmojiTile(emoji: template.exercises.first.map { ExerciseEmoji.forName($0.name) } ?? "📋",
-                          tint: Theme.Color.accentSoft)
+                if let firstExercise = template.sortedExercises.first {
+                    ExerciseIconTile(
+                        name: firstExercise.name,
+                        activityType: firstExercise.activityType
+                    )
+                } else {
+                    EmojiTile(emoji: "📋", tint: Theme.Color.accentSoft)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(template.name)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                         .lineLimit(1)
-                    Text("\(template.exercises.count) 个动作 · \(template.totalSets) 组")
+                    Text(template.cardioCount > 0
+                        ? "\(template.exercises.count) 个动作 · \(template.totalSets) 组 · \(template.cardioDurationSeconds / 60) 分有氧"
+                        : "\(template.exercises.count) 个动作 · \(template.totalSets) 组")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
@@ -223,18 +231,19 @@ struct TemplateEditorView: View {
     @State private var newExerciseName = ""
     @State private var newSets = 4
     @State private var newReps = 12
+    @State private var newActivityType: ExerciseActivityType = .strength
+    @State private var newDurationSeconds = 20 * 60
+    @State private var showingExercisePicker = false
     @State private var showingRenameSheet = false
     @State private var renameText = ""
     @State private var didAutomaticallyFocusComposer = false
     @FocusState private var nameFieldFocused: Bool
 
-    private let quickPicks = ["卧推", "深蹲", "硬拉", "引体向上", "肩上推举", "杠铃划船", "二头弯举", "平板支撑"]
-
     private var sortedExercises: [TemplateExercise] {
         template.exercises.sorted { $0.order < $1.order }
     }
 
-    private var totalSets: Int { template.exercises.reduce(0) { $0 + $1.sets } }
+    private var totalSets: Int { template.totalSets }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -252,6 +261,12 @@ struct TemplateEditorView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(template.name)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingExercisePicker) {
+            ExercisePickerSheet(
+                selectedNames: Set(template.exercises.map(\.name)),
+                onSelect: addExerciseFromLibrary
+            )
+        }
         .onAppear {
             guard automaticallyFocusComposer, !didAutomaticallyFocusComposer else { return }
             didAutomaticallyFocusComposer = true
@@ -288,7 +303,11 @@ struct TemplateEditorView: View {
         HStack(spacing: 0) {
             stat(value: "\(template.exercises.count)", label: "动作", unit: "个")
             Divider().frame(height: 40).background(Theme.Color.hairline)
-            stat(value: "\(totalSets)", label: "总组数", unit: "组")
+            if template.cardioCount > 0 {
+                stat(value: "\(template.cardioDurationSeconds / 60)", label: "有氧", unit: "分")
+            } else {
+                stat(value: "\(totalSets)", label: "总组数", unit: "组")
+            }
         }
         .tiimoCard(padding: Theme.Spacing.l)
     }
@@ -349,6 +368,21 @@ struct TemplateEditorView: View {
             SectionPill(title: "添加新动作", systemImage: "plus.circle.fill", tint: Theme.Color.tintBlue)
 
             VStack(spacing: Theme.Spacing.l) {
+                Button {
+                    showingExercisePicker = true
+                } label: {
+                    Label("浏览动作库", systemImage: "books.vertical.fill")
+                }
+                .buttonStyle(.primaryCTA)
+
+                HStack {
+                    Divider()
+                    Text("或添加自定义动作")
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                    Divider()
+                }
+
                 TextField("", text: $newExerciseName, prompt: Text("输入动作名称").foregroundColor(Theme.Color.textSecondary))
                     .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
@@ -357,33 +391,21 @@ struct TemplateEditorView: View {
                     .onSubmit(addExercise)
                     .themedField()
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.Spacing.s) {
-                        ForEach(quickPicks, id: \.self) { pick in
-                            Button {
-                                newExerciseName = pick
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            } label: {
-                                Text(pick)
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(newExerciseName == pick ? Theme.Color.accent : Theme.Color.textSecondary)
-                                    .padding(.horizontal, Theme.Spacing.m)
-                                    .padding(.vertical, Theme.Spacing.s)
-                                    .background(
-                                        newExerciseName == pick ? Theme.Color.accentSoft : Theme.Color.surfaceMuted,
-                                        in: Capsule()
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
+                Picker("训练类型", selection: $newActivityType) {
+                    ForEach(ExerciseActivityType.allCases) { type in
+                        Text(type.title).tag(type)
                     }
-                    .padding(.horizontal, 2)
                 }
+                .pickerStyle(.segmented)
 
-                HStack(spacing: Theme.Spacing.xl) {
-                    ThemedStepper(title: "训练组数", value: $newSets, range: 1...10)
-                    ThemedStepper(title: "每组次数", value: $newReps, range: 1...99)
-                    Spacer()
+                if newActivityType == .cardio {
+                    DurationSettingControl(title: "目标时长", seconds: $newDurationSeconds)
+                } else {
+                    HStack(spacing: Theme.Spacing.xl) {
+                        ThemedStepper(title: "训练组数", value: $newSets, range: 1...10)
+                        ThemedStepper(title: "每组次数", value: $newReps, range: 1...99)
+                        Spacer()
+                    }
                 }
 
                 Button(action: addExercise) {
@@ -403,12 +425,40 @@ struct TemplateEditorView: View {
         let trimmed = newExerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         withAnimation {
-            template.exercises.append(TemplateExercise(name: trimmed, sets: newSets, reps: newReps, order: template.exercises.count))
+            template.exercises.append(
+                TemplateExercise(
+                    name: trimmed,
+                    sets: newActivityType == .cardio ? 0 : newSets,
+                    reps: newActivityType == .cardio ? 0 : newReps,
+                    order: template.exercises.count,
+                    activityType: newActivityType,
+                    trackingMode: newActivityType == .cardio ? .duration : .setsAndReps,
+                    targetDurationSeconds: newActivityType == .cardio ? newDurationSeconds : 0
+                )
+            )
         }
         newExerciseName = ""
         nameFieldFocused = false
         try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func addExerciseFromLibrary(_ definition: ExerciseDefinition) {
+        guard !template.exercises.contains(where: { $0.name == definition.name }) else { return }
+        withAnimation {
+            template.exercises.append(
+                TemplateExercise(
+                    name: definition.name,
+                    sets: definition.trackingMode == .duration ? 0 : definition.defaultSets,
+                    reps: definition.trackingMode == .duration ? 0 : definition.defaultReps,
+                    order: template.exercises.count,
+                    activityType: definition.activityType,
+                    trackingMode: definition.trackingMode,
+                    targetDurationSeconds: definition.trackingMode == .duration ? definition.defaultDurationSeconds : 0
+                )
+            )
+        }
+        try? modelContext.save()
     }
 
     private func deleteExercise(_ exercise: TemplateExercise) {
@@ -466,7 +516,7 @@ struct TemplateExerciseEditorCard: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
             HStack(spacing: Theme.Spacing.m) {
-                EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+                ExerciseIconTile(name: exercise.name, activityType: exercise.activityType)
 
                 TextField("动作名称", text: $exercise.name)
                     .font(.body.weight(.semibold))
@@ -488,17 +538,21 @@ struct TemplateExerciseEditorCard: View {
 
             Divider().background(Theme.Color.hairline)
 
-            HStack(spacing: Theme.Spacing.xl) {
-                ThemedStepper(title: "组数", value: $exercise.sets, range: 1...20)
-                ThemedStepper(title: "次数", value: $exercise.reps, range: 1...100)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("总计")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Theme.Color.textSecondary)
-                    Text("\(exercise.sets * exercise.reps) 次")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Theme.Color.accent)
+            if exercise.isCardio {
+                DurationSettingControl(title: "目标时长", seconds: $exercise.targetDurationSeconds)
+            } else {
+                HStack(spacing: Theme.Spacing.xl) {
+                    ThemedStepper(title: "组数", value: $exercise.sets, range: 1...20)
+                    ThemedStepper(title: "次数", value: $exercise.reps, range: 1...100)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("总计")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Theme.Color.textSecondary)
+                        Text("\(exercise.sets * exercise.reps) 次")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.Color.accent)
+                    }
                 }
             }
         }

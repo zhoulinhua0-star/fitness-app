@@ -12,7 +12,10 @@ struct WeeklyPlanOverview: View {
     @State private var showCalendar = false
 
     private var summaryLine: String {
-        "\(overview.trainingDays) 练 · \(overview.restDays) 休 · 共 \(overview.totalSets) 组"
+        var parts = ["\(overview.trainingDays) 练", "\(overview.restDays) 休"]
+        if overview.totalSets > 0 { parts.append("共 \(overview.totalSets) 组") }
+        if let minutes = overview.totalCardioMinutes, minutes > 0 { parts.append("\(minutes) 分有氧") }
+        return parts.joined(separator: " · ")
     }
 
     private var heaviestLine: String? {
@@ -74,7 +77,7 @@ struct WeeklyPlanOverview: View {
                                 .foregroundStyle(day.isRestDay ? Theme.Color.success : Theme.Color.textPrimary)
                             Spacer()
                             if !day.isRestDay {
-                                Text("\(day.totalSets) 组")
+                                Text(daySummary(day))
                                     .font(.subheadline)
                                     .foregroundStyle(Theme.Color.textSecondary)
                             }
@@ -107,7 +110,7 @@ struct WeeklyPlanOverview: View {
                                 Text(" ")
                                     .appScaledFont(size: 9, relativeTo: .caption2)
                             } else {
-                                Text("\(day.totalSets)组")
+                                Text(daySummary(day))
                                     .appScaledFont(size: 9, relativeTo: .caption2, weight: .medium)
                                     .foregroundStyle(Theme.Color.textSecondary)
                             }
@@ -122,5 +125,12 @@ struct WeeklyPlanOverview: View {
                 }
             }
         }
+    }
+
+    private func daySummary(_ day: WeekPlanSummary.WeekDayDisplay) -> String {
+        var parts: [String] = []
+        if day.totalSets > 0 { parts.append("\(day.totalSets)组") }
+        if let minutes = day.cardioMinutes, minutes > 0 { parts.append("\(minutes)分") }
+        return parts.isEmpty ? "待定" : parts.joined(separator: "·")
     }
 }

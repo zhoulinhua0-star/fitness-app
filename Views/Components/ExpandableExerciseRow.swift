@@ -25,6 +25,10 @@ struct ExpandableExerciseRow: View {
         restTimers.timer(for: restTimerID)
     }
 
+    private var completedRestTimer: CompletedRestTimer? {
+        restTimers.completion(for: restTimerID)
+    }
+
     private var effectiveRestSeconds: Int {
         todayRestSeconds ?? exercise.restSeconds ?? settings.defaultRestSeconds
     }
@@ -45,7 +49,10 @@ struct ExpandableExerciseRow: View {
     }
     
     private var lastTimeSummary: String? {
-        WorkoutHistoryManager.lastPerformanceSummary(context: modelContext, exerciseName: exercise.name)
+        if exercise.isCardio {
+            return WorkoutHistoryManager.lastCardioPerformanceSummary(context: modelContext, exerciseName: exercise.name)
+        }
+        return WorkoutHistoryManager.lastPerformanceSummary(context: modelContext, exerciseName: exercise.name)
     }
     
     private static let expandSpring = Animation.spring(response: 0.42, dampingFraction: 0.86, blendDuration: 0.08)
@@ -86,6 +93,7 @@ struct ExpandableExerciseRow: View {
         .animation(Self.expandSpring, value: isExpanded)
         .sensoryFeedback(.selection, trigger: isExpanded)
         .onAppear {
+            guard !exercise.isCardio else { return }
             todayRestSeconds = loadTodayRestOverride()
             migrateLegacyRestTimerIfNeeded()
             restTimers.register(timerID: restTimerID, exerciseName: exercise.name)
@@ -100,23 +108,27 @@ struct ExpandableExerciseRow: View {
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: Theme.Spacing.m) {
                     HStack(alignment: .top, spacing: Theme.Spacing.m) {
-                        EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+                        ExerciseIconTile(name: exercise.name, activityType: exercise.activityType)
                         exerciseTextContent
                         CircleCheck(isComplete: isFullyCompleted)
                     }
 
-                    if let timer = activeRestTimer, !isFullyCompleted {
+                    if !exercise.isCardio, let timer = activeRestTimer, !isFullyCompleted {
                         RestTimerBadge(endDate: timer.endDate)
+                    } else if !exercise.isCardio, completedRestTimer != nil, !isFullyCompleted {
+                        RestReadyBadge()
                     }
                 }
             } else {
                 HStack(spacing: Theme.Spacing.m) {
-                    EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+                    ExerciseIconTile(name: exercise.name, activityType: exercise.activityType)
                     exerciseTextContent
                     Spacer(minLength: 8)
 
-                    if let timer = activeRestTimer, !isFullyCompleted {
+                    if !exercise.isCardio, let timer = activeRestTimer, !isFullyCompleted {
                         RestTimerBadge(endDate: timer.endDate)
+                    } else if !exercise.isCardio, completedRestTimer != nil, !isFullyCompleted {
+                        RestReadyBadge()
                     }
 
                     CircleCheck(isComplete: isFullyCompleted)
@@ -132,9 +144,19 @@ struct ExpandableExerciseRow: View {
                 .strikethrough(isFullyCompleted, color: Theme.Color.textSecondary)
                 .foregroundStyle(isFullyCompleted ? Theme.Color.textSecondary : Theme.Color.textPrimary)
 
-            Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
-                .font(.subheadline)
-                .foregroundStyle(Theme.Color.textSecondary)
+            if exercise.isCardio {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let elapsed = exercise.cardioElapsedSeconds(at: context.date)
+                    Text(cardioHeaderDescription(elapsed: elapsed))
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                        .monospacedDigit()
+                }
+            } else {
+                Text("\(completedSets) / \(exercise.sets) 组 · \(exercise.reps) 次/组")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.Color.textSecondary)
+            }
 
             if let lastTimeSummary {
                 Text(lastTimeSummary)
@@ -142,14 +164,31 @@ struct ExpandableExerciseRow: View {
                     .foregroundStyle(Theme.Color.textSecondary)
             }
 
-            ProgressView(value: exercise.setProgress)
-                .tint(Theme.Color.accent)
-                .animation(nil, value: exercise.setProgress)
+            if exercise.isCardio {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    ProgressView(value: exercise.cardioProgress(at: context.date))
+                        .tint(exercise.isFullyCompletedToday ? Theme.Color.success : Theme.Color.accent)
+                }
+            } else {
+                ProgressView(value: exercise.setProgress)
+                    .tint(Theme.Color.accent)
+                    .animation(nil, value: exercise.setProgress)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private var setPanel: some View {
+        Group {
+            if exercise.isCardio {
+                cardioPanel
+            } else {
+                strengthSetPanel
+            }
+        }
+    }
+
+    private var strengthSetPanel: some View {
         VStack(spacing: 8) {
             Divider()
 
@@ -191,8 +230,14 @@ struct ExpandableExerciseRow: View {
             if let timer = activeRestTimer, !isFullyCompleted {
                 RestTimerView(
                     endDate: timer.endDate,
-                    onSkip: { cancelRestTimer() },
+                    nextSetNumber: completedSets + 1,
+                    onSkip: { skipRestTimer() },
                     onEndDateChanged: { updateRestTimerEndDate($0) }
+                )
+            } else if let completion = completedRestTimer, !isFullyCompleted {
+                RestReadyView(
+                    nextSetNumber: completedSets + 1,
+                    wasSkipped: completion.reason == .skipped
                 )
             }
             
@@ -207,6 +252,158 @@ struct ExpandableExerciseRow: View {
                 .padding(.top, 4)
             }
         }
+    }
+
+    private var cardioPanel: some View {
+        VStack(spacing: Theme.Spacing.m) {
+            Divider()
+
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let elapsed = exercise.cardioElapsedSeconds(at: context.date)
+                let reachedGoal = elapsed >= exercise.targetDurationSeconds
+
+                VStack(spacing: Theme.Spacing.m) {
+                    VStack(spacing: 4) {
+                        Text(ExerciseFormatting.duration(elapsed))
+                            .appScaledFont(size: 40, relativeTo: .largeTitle, weight: .bold, design: .rounded)
+                            .monospacedDigit()
+                            .foregroundStyle(Theme.Color.textPrimary)
+                        Text("目标 \(ExerciseFormatting.duration(exercise.targetDurationSeconds))")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.Color.textSecondary)
+                            .monospacedDigit()
+                    }
+
+                    ProgressView(value: exercise.cardioProgress(at: context.date))
+                        .tint(reachedGoal ? Theme.Color.success : Theme.Color.accent)
+
+                    if reachedGoal && !exercise.isFullyCompletedToday {
+                        Label("目标已达到，可以继续", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.Color.success)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(Theme.Color.tintMint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .accessibilityLabel("有氧目标已达到，可以继续训练")
+                    }
+
+                    cardioControls(elapsed: elapsed)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cardioControls(elapsed: Int) -> some View {
+        if exercise.isFullyCompletedToday {
+            VStack(spacing: Theme.Spacing.s) {
+                Label("已完成并保存 \(ExerciseFormatting.shortDuration(elapsed))", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.Color.success)
+
+                Button {
+                    resetCardio()
+                } label: {
+                    Label("重新计时", systemImage: "arrow.counterclockwise")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+            }
+        } else if exercise.cardioStartedAt != nil {
+            HStack(spacing: Theme.Spacing.s) {
+                Button {
+                    pauseCardio()
+                } label: {
+                    Label("暂停", systemImage: "pause.fill")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    finishCardio()
+                } label: {
+                    Label("结束并保存", systemImage: "checkmark")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.Color.accent)
+            }
+        } else if elapsed > 0 {
+            HStack(spacing: Theme.Spacing.s) {
+                Button {
+                    startCardio()
+                } label: {
+                    Label("继续", systemImage: "play.fill")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    finishCardio()
+                } label: {
+                    Label("结束并保存", systemImage: "checkmark")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.Color.accent)
+            }
+        } else {
+            Button {
+                startCardio()
+            } label: {
+                Label("开始计时", systemImage: "play.fill")
+                    .frame(maxWidth: .infinity, minHeight: 48)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.Color.accent)
+        }
+    }
+
+    private func cardioHeaderDescription(elapsed: Int) -> String {
+        if exercise.isFullyCompletedToday {
+            return "已完成 · \(ExerciseFormatting.shortDuration(elapsed))"
+        }
+        if exercise.cardioStartedAt != nil {
+            return "\(ExerciseFormatting.duration(elapsed)) / \(ExerciseFormatting.duration(exercise.targetDurationSeconds)) · 计时中"
+        }
+        if elapsed > 0 {
+            return "\(ExerciseFormatting.duration(elapsed)) / \(ExerciseFormatting.duration(exercise.targetDurationSeconds)) · 已暂停"
+        }
+        return "目标 \(ExerciseFormatting.shortDuration(exercise.targetDurationSeconds))"
+    }
+
+    private func startCardio() {
+        exercise.startCardio()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        onSetProgressChanged()
+    }
+
+    private func pauseCardio() {
+        exercise.pauseCardio()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        onSetProgressChanged()
+    }
+
+    private func finishCardio() {
+        let duration = exercise.finishCardio()
+        WorkoutHistoryManager.logCardio(
+            context: modelContext,
+            session: session,
+            exercise: exercise,
+            durationSeconds: duration
+        )
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        onSetProgressChanged()
+    }
+
+    private func resetCardio() {
+        WorkoutHistoryManager.removeCardioLog(
+            context: modelContext,
+            session: session,
+            exerciseName: exercise.name
+        )
+        exercise.resetCardio()
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+        onSetProgressChanged()
     }
     
     private func setRow(setNumber: Int) -> some View {
@@ -310,6 +507,10 @@ struct ExpandableExerciseRow: View {
 
     private func cancelRestTimer() {
         restTimers.cancel(timerID: restTimerID)
+    }
+
+    private func skipRestTimer() {
+        restTimers.skip(timerID: restTimerID)
     }
 
     private func updateRestTimerEndDate(_ endDate: Date) {

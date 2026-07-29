@@ -7,6 +7,11 @@ final class Exercise {
     var sets: Int
     var reps: Int
     var order: Int
+    var activityTypeRaw: String = ExerciseActivityType.strength.rawValue
+    var trackingModeRaw: String = ExerciseTrackingMode.setsAndReps.rawValue
+    var targetDurationSeconds: Int = 0
+    var elapsedDurationSeconds: Int = 0
+    var cardioStartedAt: Date?
     /// Per-exercise rest duration. Nil falls back to the app-wide default.
     var restSeconds: Int?
     var lastCompletedDate: Date?
@@ -24,6 +29,11 @@ final class Exercise {
         sets: Int,
         reps: Int,
         order: Int = 0,
+        activityType: ExerciseActivityType = .strength,
+        trackingMode: ExerciseTrackingMode = .setsAndReps,
+        targetDurationSeconds: Int = 0,
+        elapsedDurationSeconds: Int = 0,
+        cardioStartedAt: Date? = nil,
         restSeconds: Int? = nil,
         lastCompletedDate: Date? = nil,
         sessionDate: Date? = nil,
@@ -35,6 +45,11 @@ final class Exercise {
         self.sets = sets
         self.reps = reps
         self.order = order
+        self.activityTypeRaw = activityType.rawValue
+        self.trackingModeRaw = trackingMode.rawValue
+        self.targetDurationSeconds = targetDurationSeconds
+        self.elapsedDurationSeconds = elapsedDurationSeconds
+        self.cardioStartedAt = cardioStartedAt
         self.restSeconds = restSeconds
         self.lastCompletedDate = lastCompletedDate
         self.sessionDate = sessionDate
@@ -45,6 +60,20 @@ final class Exercise {
 }
 
 extension Exercise {
+    var activityType: ExerciseActivityType {
+        get { ExerciseActivityType(rawValue: activityTypeRaw) ?? .strength }
+        set { activityTypeRaw = newValue.rawValue }
+    }
+
+    var trackingMode: ExerciseTrackingMode {
+        get { ExerciseTrackingMode(rawValue: trackingModeRaw) ?? .setsAndReps }
+        set { trackingModeRaw = newValue.rawValue }
+    }
+
+    var isCardio: Bool {
+        activityType == .cardio || trackingMode == .duration
+    }
+
     private var isSessionToday: Bool {
         guard let sessionDate else { return false }
         return Calendar.current.isDateInToday(sessionDate)
@@ -55,6 +84,8 @@ extension Exercise {
         if !Calendar.current.isDate(sessionDate, inSameDayAs: date) {
             self.sessionDate = nil
             completedSetCount = 0
+            elapsedDurationSeconds = 0
+            cardioStartedAt = nil
             lastCompletedDate = nil
         }
     }
@@ -79,16 +110,22 @@ extension Exercise {
     }
     
     var setProgress: Double {
+        guard !isCardio else { return cardioProgress() }
         guard sets > 0 else { return 0 }
         return Double(effectiveCompletedSetCount) / Double(sets)
     }
     
     var isFullyCompletedToday: Bool {
-        isSessionToday && effectiveCompletedSetCount >= sets
+        if isCardio {
+            guard isSessionToday, let lastCompletedDate else { return false }
+            return Calendar.current.isDateInToday(lastCompletedDate)
+        }
+        return isSessionToday && effectiveCompletedSetCount >= sets
     }
     
     @discardableResult
     func completeNextSet(at date: Date = .now) -> Bool {
+        guard !isCardio else { return false }
         prepareForTodayIfNeeded(at: date)
         guard completedSetCount < sets else { return false }
         
@@ -110,6 +147,7 @@ extension Exercise {
     
     @discardableResult
     func undoLastSet() -> Bool {
+        guard !isCardio else { return false }
         prepareForTodayIfNeeded()
         guard completedSetCount > 0 else { return false }
         
@@ -119,11 +157,59 @@ extension Exercise {
     }
     
     func completeAllRemainingSets(at date: Date = .now) {
+        guard !isCardio else { return }
         prepareForTodayIfNeeded(at: date)
         guard completedSetCount < sets else { return }
         
         sessionDate = date
         completedSetCount = sets
         lastCompletedDate = date
+    }
+
+    func cardioElapsedSeconds(at date: Date = .now) -> Int {
+        guard sessionDate.map({ Calendar.current.isDate($0, inSameDayAs: date) }) ?? false else { return 0 }
+        let runningSeconds = cardioStartedAt.map { max(0, Int(date.timeIntervalSince($0))) } ?? 0
+        return max(0, elapsedDurationSeconds + runningSeconds)
+    }
+
+    func cardioProgress(at date: Date = .now) -> Double {
+        guard targetDurationSeconds > 0 else { return isFullyCompletedToday ? 1 : 0 }
+        return min(1, Double(cardioElapsedSeconds(at: date)) / Double(targetDurationSeconds))
+    }
+
+    func startCardio(at date: Date = .now) {
+        guard isCardio, !isFullyCompletedToday else { return }
+        prepareForTodayIfNeeded(at: date)
+        if !isSessionToday {
+            sessionDate = date
+            elapsedDurationSeconds = 0
+        }
+        guard cardioStartedAt == nil else { return }
+        cardioStartedAt = date
+    }
+
+    func pauseCardio(at date: Date = .now) {
+        guard isCardio, let cardioStartedAt else { return }
+        elapsedDurationSeconds += max(0, Int(date.timeIntervalSince(cardioStartedAt)))
+        self.cardioStartedAt = nil
+    }
+
+    @discardableResult
+    func finishCardio(at date: Date = .now) -> Int {
+        guard isCardio else { return 0 }
+        pauseCardio(at: date)
+        if sessionDate == nil {
+            sessionDate = date
+        }
+        lastCompletedDate = date
+        return elapsedDurationSeconds
+    }
+
+    func resetCardio() {
+        guard isCardio else { return }
+        elapsedDurationSeconds = 0
+        cardioStartedAt = nil
+        lastCompletedDate = nil
+        sessionDate = nil
     }
 }

@@ -209,23 +209,3 @@ extension View {
             )
     }
 }
-
-/// Maps an exercise name to a stable, sensible emoji.
-enum ExerciseEmoji {
-    static func forName(_ name: String) -> String {
-        let lower = name.lowercased()
-        let table: [(keys: [String], emoji: String)] = [
-            (["卧推", "bench", "胸", "chest", "push", "夹胸", "飞鸟"], "🏋️"),
-            (["深蹲", "squat", "腿", "leg", "蹲", "弓步", "lunge"], "🦵"),
-            (["硬拉", "deadlift", "背", "back", "划船", "row", "引体", "pull"], "🪝"),
-            (["肩", "shoulder", "推举", "press", "侧平举", "raise"], "🤸"),
-            (["二头", "biceps", "弯举", "curl", "臂", "arm", "三头", "triceps"], "💪"),
-            (["核心", "腹", "core", "abs", "plank", "平板"], "🔥"),
-            (["跑", "run", "有氧", "cardio", "单车", "bike", "划船机"], "🏃"),
-        ]
-        for entry in table where entry.keys.contains(where: { lower.contains($0) }) {
-            return entry.emoji
-        }
-        return "💪"
-    }
-}

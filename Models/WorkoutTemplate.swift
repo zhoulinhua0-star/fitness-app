@@ -29,7 +29,9 @@ final class WorkoutTemplate {
         self.exercises = exercises
     }
 
-    var totalSets: Int { exercises.reduce(0) { $0 + $1.sets } }
+    var totalSets: Int { exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets } }
+    var cardioCount: Int { exercises.filter(\.isCardio).count }
+    var cardioDurationSeconds: Int { exercises.filter(\.isCardio).reduce(0) { $0 + $1.targetDurationSeconds } }
     var sortedExercises: [TemplateExercise] { exercises.sorted { $0.order < $1.order } }
 }
 
@@ -39,11 +41,41 @@ final class TemplateExercise {
     var sets: Int
     var reps: Int
     var order: Int
+    var activityTypeRaw: String = ExerciseActivityType.strength.rawValue
+    var trackingModeRaw: String = ExerciseTrackingMode.setsAndReps.rawValue
+    var targetDurationSeconds: Int = 0
 
-    init(name: String, sets: Int, reps: Int, order: Int = 0) {
+    init(
+        name: String,
+        sets: Int,
+        reps: Int,
+        order: Int = 0,
+        activityType: ExerciseActivityType = .strength,
+        trackingMode: ExerciseTrackingMode = .setsAndReps,
+        targetDurationSeconds: Int = 0
+    ) {
         self.name = name
         self.sets = sets
         self.reps = reps
         self.order = order
+        self.activityTypeRaw = activityType.rawValue
+        self.trackingModeRaw = trackingMode.rawValue
+        self.targetDurationSeconds = targetDurationSeconds
+    }
+}
+
+extension TemplateExercise {
+    var activityType: ExerciseActivityType {
+        get { ExerciseActivityType(rawValue: activityTypeRaw) ?? .strength }
+        set { activityTypeRaw = newValue.rawValue }
+    }
+
+    var trackingMode: ExerciseTrackingMode {
+        get { ExerciseTrackingMode(rawValue: trackingModeRaw) ?? .setsAndReps }
+        set { trackingModeRaw = newValue.rawValue }
+    }
+
+    var isCardio: Bool {
+        activityType == .cardio || trackingMode == .duration
     }
 }

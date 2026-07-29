@@ -115,21 +115,27 @@ private struct MuscleGroupChip: View {
 // MARK: - Exercise suggestion row
 
 private struct ExerciseSuggestionRow: View {
-    let name: String
+    let definition: ExerciseDefinition
     let groupTint: Color
     let isAdded: Bool
     @Binding var sets: Int
     @Binding var reps: Int
+    @Binding var targetDurationSeconds: Int
     let onToggle: () -> Void
 
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
             HStack(spacing: Theme.Spacing.m) {
-                EmojiTile(emoji: ExerciseEmoji.forName(name), tint: groupTint, size: 44)
+                ExerciseIconTile(definition: definition, tint: groupTint, size: 44)
 
-                Text(name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.Color.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(definition.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text(definition.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
 
                 Spacer()
 
@@ -144,10 +150,16 @@ private struct ExerciseSuggestionRow: View {
             }
 
             if isAdded {
-                HStack(spacing: Theme.Spacing.xl) {
-                    ThemedStepper(title: "组数", value: $sets, range: 1...20)
-                    ThemedStepper(title: "次数", value: $reps, range: 1...100)
-                    Spacer()
+                Group {
+                    if definition.trackingMode == .duration {
+                        DurationSettingControl(title: "目标时长", seconds: $targetDurationSeconds)
+                    } else {
+                        HStack(spacing: Theme.Spacing.xl) {
+                            ThemedStepper(title: "组数", value: $sets, range: 1...20)
+                            ThemedStepper(title: "次数", value: $reps, range: 1...100)
+                            Spacer()
+                        }
+                    }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -177,6 +189,9 @@ struct ImprovModeView: View {
     @State private var selectedGroups: Set<MuscleGroupData> = []
     @State private var sessionExercises: [ImprovEntry] = []
     @State private var customName = ""
+    @State private var customActivityType: ExerciseActivityType = .strength
+    @State private var customDurationSeconds = 20 * 60
+    @State private var showingExercisePicker = false
     @FocusState private var customFieldFocused: Bool
 
     // Staggered entrance animation triggers
@@ -189,10 +204,14 @@ struct ImprovModeView: View {
         sessionExercises.filter { $0.isCustom }
     }
 
-    private var suggestedExercises: [(group: MuscleGroupData, name: String)] {
+    private var suggestedExercises: [(group: MuscleGroupData, definition: ExerciseDefinition)] {
         ExerciseLibrary.groups
             .filter { selectedGroups.contains($0) }
-            .flatMap { group in group.exercises.map { (group: group, name: $0) } }
+            .flatMap { group in
+                group.exercises.compactMap { name in
+                    ExerciseLibrary.definition(named: name).map { (group: group, definition: $0) }
+                }
+            }
     }
 
     private func isAdded(_ name: String) -> Bool {
@@ -221,6 +240,17 @@ struct ImprovModeView: View {
         )
     }
 
+    private func durationBinding(for name: String) -> Binding<Int> {
+        Binding(
+            get: { sessionExercises.first(where: { $0.name == name })?.targetDurationSeconds ?? 20 * 60 },
+            set: { newValue in
+                if let idx = sessionExercises.firstIndex(where: { $0.name == name }) {
+                    sessionExercises[idx].targetDurationSeconds = newValue
+                }
+            }
+        )
+    }
+
     private func setsBinding(id: UUID) -> Binding<Int> {
         Binding(
             get: { sessionExercises.first(where: { $0.id == id })?.sets ?? 3 },
@@ -243,6 +273,17 @@ struct ImprovModeView: View {
         )
     }
 
+    private func durationBinding(id: UUID) -> Binding<Int> {
+        Binding(
+            get: { sessionExercises.first(where: { $0.id == id })?.targetDurationSeconds ?? 20 * 60 },
+            set: { newValue in
+                if let idx = sessionExercises.firstIndex(where: { $0.id == id }) {
+                    sessionExercises[idx].targetDurationSeconds = newValue
+                }
+            }
+        )
+    }
+
     private func addCustomExercise() {
         let trimmed = customName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -253,7 +294,16 @@ struct ImprovModeView: View {
         }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             sessionExercises.append(
-                ImprovEntry(name: trimmed, groupTint: Theme.Color.accentSoft, isCustom: true)
+                ImprovEntry(
+                    name: trimmed,
+                    sets: customActivityType == .cardio ? 0 : 3,
+                    reps: customActivityType == .cardio ? 0 : 10,
+                    activityType: customActivityType,
+                    trackingMode: customActivityType == .cardio ? .duration : .setsAndReps,
+                    targetDurationSeconds: customActivityType == .cardio ? customDurationSeconds : 0,
+                    groupTint: Theme.Color.accentSoft,
+                    isCustom: true
+                )
             )
         }
         customName = ""
@@ -261,23 +311,49 @@ struct ImprovModeView: View {
     }
 
     private func removeEntry(_ entry: ImprovEntry) {
-        _ = withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             sessionExercises.removeAll { $0.id == entry.id }
         }
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
     }
 
-    private func toggle(_ name: String, group: MuscleGroupData) {
-        if let idx = sessionExercises.firstIndex(where: { $0.name == name }) {
+    private func toggle(_ definition: ExerciseDefinition, group: MuscleGroupData) {
+        if let idx = sessionExercises.firstIndex(where: { $0.name == definition.name }) {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                sessionExercises.remove(at: idx)
+                _ = sessionExercises.remove(at: idx)
             }
         } else {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                sessionExercises.append(ImprovEntry(name: name, groupTint: group.tint))
+                sessionExercises.append(
+                    ImprovEntry(
+                        name: definition.name,
+                        sets: definition.trackingMode == .duration ? 0 : definition.defaultSets,
+                        reps: definition.trackingMode == .duration ? 0 : definition.defaultReps,
+                        activityType: definition.activityType,
+                        trackingMode: definition.trackingMode,
+                        targetDurationSeconds: definition.trackingMode == .duration ? definition.defaultDurationSeconds : 0,
+                        groupTint: group.tint
+                    )
+                )
             }
         }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func addDefinition(_ definition: ExerciseDefinition) {
+        guard !isAdded(definition.name) else { return }
+        let tint = definition.activityType == .cardio ? Theme.Color.tintMint : Theme.Color.accentSoft
+        sessionExercises.append(
+            ImprovEntry(
+                name: definition.name,
+                sets: definition.trackingMode == .duration ? 0 : definition.defaultSets,
+                reps: definition.trackingMode == .duration ? 0 : definition.defaultReps,
+                activityType: definition.activityType,
+                trackingMode: definition.trackingMode,
+                targetDurationSeconds: definition.trackingMode == .duration ? definition.defaultDurationSeconds : 0,
+                groupTint: tint
+            )
+        )
     }
 
     var body: some View {
@@ -304,6 +380,13 @@ struct ImprovModeView: View {
                             .opacity(questionAppeared ? 1 : 0)
                     }
                     .padding(.top, Theme.Spacing.m)
+
+                    Button {
+                        showingExercisePicker = true
+                    } label: {
+                        Label("搜索完整动作库", systemImage: "magnifyingglass")
+                    }
+                    .buttonStyle(.primaryCTA)
 
                     // ── Muscle group chips (3 × 2 grid) ───────────────
                     LazyVGrid(
@@ -352,14 +435,15 @@ struct ImprovModeView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                             VStack(spacing: Theme.Spacing.s) {
-                                ForEach(suggestedExercises, id: \.name) { item in
+                                ForEach(suggestedExercises, id: \.definition.id) { item in
                                     ExerciseSuggestionRow(
-                                        name: item.name,
+                                        definition: item.definition,
                                         groupTint: item.group.tint,
-                                        isAdded: isAdded(item.name),
-                                        sets: setsBinding(for: item.name),
-                                        reps: repsBinding(for: item.name),
-                                        onToggle: { toggle(item.name, group: item.group) }
+                                        isAdded: isAdded(item.definition.name),
+                                        sets: setsBinding(for: item.definition.name),
+                                        reps: repsBinding(for: item.definition.name),
+                                        targetDurationSeconds: durationBinding(for: item.definition.name),
+                                        onToggle: { toggle(item.definition, group: item.group) }
                                     )
                                 }
                             }
@@ -385,6 +469,12 @@ struct ImprovModeView: View {
             }
         }
         .onAppear { triggerEntranceAnimation() }
+        .sheet(isPresented: $showingExercisePicker) {
+            ExercisePickerSheet(
+                selectedNames: Set(sessionExercises.map(\.name)),
+                onSelect: addDefinition
+            )
+        }
     }
 
     // MARK: Start — inject exercises into today's logging surface
@@ -410,6 +500,9 @@ struct ImprovModeView: View {
                 sets: entry.sets,
                 reps: entry.reps,
                 order: index,
+                activityType: entry.activityType,
+                trackingMode: entry.trackingMode,
+                targetDurationSeconds: entry.targetDurationSeconds,
                 sessionDate: now,
                 completedSetCount: 0,
                 isImprov: true
@@ -472,6 +565,17 @@ struct ImprovModeView: View {
                     .opacity(customName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
                 }
 
+                Picker("训练类型", selection: $customActivityType) {
+                    ForEach(ExerciseActivityType.allCases) { type in
+                        Text(type.title).tag(type)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if customActivityType == .cardio {
+                    DurationSettingControl(title: "目标时长", seconds: $customDurationSeconds)
+                }
+
                 ForEach(customEntries) { entry in
                     customEntryRow(entry)
                         .transition(.scale(scale: 0.96).combined(with: .opacity))
@@ -483,7 +587,12 @@ struct ImprovModeView: View {
     private func customEntryRow(_ entry: ImprovEntry) -> some View {
         VStack(spacing: Theme.Spacing.m) {
             HStack(spacing: Theme.Spacing.m) {
-                EmojiTile(emoji: ExerciseEmoji.forName(entry.name), tint: entry.groupTint, size: 44)
+                ExerciseIconTile(
+                    name: entry.name,
+                    activityType: entry.activityType,
+                    tint: entry.groupTint,
+                    size: 44
+                )
 
                 Text(entry.name)
                     .font(.subheadline.weight(.semibold))
@@ -499,10 +608,14 @@ struct ImprovModeView: View {
                 .buttonStyle(.plain)
             }
 
-            HStack(spacing: Theme.Spacing.xl) {
-                ThemedStepper(title: "组数", value: setsBinding(id: entry.id), range: 1...20)
-                ThemedStepper(title: "次数", value: repsBinding(id: entry.id), range: 1...100)
-                Spacer()
+            if entry.trackingMode == .duration {
+                DurationSettingControl(title: "目标时长", seconds: durationBinding(id: entry.id))
+            } else {
+                HStack(spacing: Theme.Spacing.xl) {
+                    ThemedStepper(title: "组数", value: setsBinding(id: entry.id), range: 1...20)
+                    ThemedStepper(title: "次数", value: repsBinding(id: entry.id), range: 1...100)
+                    Spacer()
+                }
             }
         }
         .padding(Theme.Spacing.m)

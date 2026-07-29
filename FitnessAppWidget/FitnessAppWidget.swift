@@ -5,6 +5,9 @@ struct FitnessAppWidgetEntry: TimelineEntry {
     let date: Date
     let completedSets: Int
     let totalSets: Int
+    let completedCardio: Int
+    let totalCardio: Int
+    let cardioDurationSeconds: Int
     let completedExercises: Int
     let totalExercises: Int
     let dayName: String
@@ -17,8 +20,16 @@ struct FitnessAppWidgetEntry: TimelineEntry {
     let weekOverview: WeekPlanSummary.Overview?
     
     var progress: Double {
-        guard totalSets > 0 else { return 0 }
-        return Double(completedSets) / Double(totalSets)
+        let plannedUnits = totalSets + totalCardio
+        guard plannedUnits > 0 else { return 0 }
+        return Double(completedSets + completedCardio) / Double(plannedUnits)
+    }
+
+    var workSummary: String {
+        var parts: [String] = []
+        if totalSets > 0 { parts.append("\(completedSets)/\(totalSets) 组") }
+        if totalCardio > 0 { parts.append("\(completedCardio)/\(totalCardio) 有氧") }
+        return parts.isEmpty ? "暂无训练" : parts.joined(separator: " · ")
     }
     
     static func fromStore(date: Date = .now) -> FitnessAppWidgetEntry {
@@ -26,6 +37,9 @@ struct FitnessAppWidgetEntry: TimelineEntry {
             date: date,
             completedSets: WidgetDataStore.completedSets,
             totalSets: WidgetDataStore.totalSets,
+            completedCardio: WidgetDataStore.completedCardio,
+            totalCardio: WidgetDataStore.totalCardio,
+            cardioDurationSeconds: WidgetDataStore.cardioDurationSeconds,
             completedExercises: WidgetDataStore.completedExercises,
             totalExercises: WidgetDataStore.totalExercises,
             dayName: WidgetDataStore.dayName,
@@ -46,6 +60,9 @@ struct FitnessAppWidgetProvider: TimelineProvider {
             date: .now,
             completedSets: 6,
             totalSets: 20,
+            completedCardio: 0,
+            totalCardio: 1,
+            cardioDurationSeconds: 0,
             completedExercises: 1,
             totalExercises: 4,
             dayName: "周三",
@@ -129,7 +146,7 @@ struct FitnessAppWidgetEntryView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.green)
             
-            Text("\(entry.completedSets)/\(entry.totalSets) 组")
+            Text(entry.workSummary)
                 .font(.title2.bold())
             
             if entry.streak > 0 {
@@ -153,7 +170,7 @@ struct FitnessAppWidgetEntryView: View {
                     .foregroundStyle(Color.accentColor)
             }
             
-            Text("\(entry.completedSets)/\(entry.totalSets) 组")
+            Text(entry.workSummary)
                 .font(.title2.bold())
             
             ProgressView(value: entry.progress)
@@ -196,7 +213,7 @@ struct FitnessAppWidgetEntryView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } else {
-                        Text("\(entry.completedSets)/\(entry.totalSets) 组")
+                        Text(entry.workSummary)
                             .font(.title3.bold())
                     }
                 }
@@ -204,7 +221,7 @@ struct FitnessAppWidgetEntryView: View {
                 Spacer()
                 
                 if let overview = entry.weekOverview {
-                    Text("\(overview.trainingDays)练 · \(overview.totalSets)组")
+                    Text(weekSummary(overview))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -228,6 +245,13 @@ struct FitnessAppWidgetEntryView: View {
         }
         .padding()
     }
+
+    private func weekSummary(_ overview: WeekPlanSummary.Overview) -> String {
+        var parts = ["\(overview.trainingDays)练"]
+        if overview.totalSets > 0 { parts.append("\(overview.totalSets)组") }
+        if let minutes = overview.totalCardioMinutes, minutes > 0 { parts.append("\(minutes)分有氧") }
+        return parts.joined(separator: " · ")
+    }
     
     private var accessoryRectangularView: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -235,10 +259,10 @@ struct FitnessAppWidgetEntryView: View {
                 Text("今日休息")
                     .font(.headline)
             } else if entry.isWorkoutComplete {
-                Text("已完成 \(entry.completedSets) 组")
+                Text(entry.workSummary)
                     .font(.headline)
             } else {
-                Text("\(entry.dayName) · \(entry.completedSets)/\(entry.totalSets) 组")
+                Text("\(entry.dayName) · \(entry.workSummary)")
                     .font(.headline)
             }
             
@@ -258,9 +282,9 @@ struct FitnessAppWidgetEntryView: View {
         if entry.isRestDay {
             Text("休息")
         } else if entry.isWorkoutComplete {
-            Text("已完成 \(entry.completedSets) 组")
+            Text(entry.workSummary)
         } else {
-            Text("\(entry.dayName) \(entry.completedSets)/\(entry.totalSets)")
+            Text("\(entry.dayName) \(entry.workSummary)")
         }
     }
     

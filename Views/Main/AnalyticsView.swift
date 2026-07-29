@@ -79,6 +79,36 @@ struct AnalyticsView: View {
         return WorkoutHistoryManager.plannedSetCount(for: plan)
     }
 
+    private var todayCompletedCardio: Int {
+        if isImprovActiveToday {
+            return WorkoutHistoryManager.completedCardioCount(for: todayImprovExercises)
+        }
+        if isDayFinishedToday {
+            return todayFinishedSession?.completedCardioCount ?? 0
+        }
+        return todayPlan.map { WorkoutHistoryManager.completedCardioCount(for: $0.exercises) } ?? 0
+    }
+
+    private var todayPlannedCardio: Int {
+        if isImprovActiveToday {
+            return WorkoutHistoryManager.plannedCardioCount(for: todayImprovExercises)
+        }
+        if isDayFinishedToday {
+            return todayFinishedSession?.plannedCardioCount ?? 0
+        }
+        return todayPlan.map { WorkoutHistoryManager.plannedCardioCount(for: $0.exercises) } ?? 0
+    }
+
+    private var todayCardioDurationSeconds: Int {
+        if isImprovActiveToday {
+            return WorkoutHistoryManager.completedCardioDuration(for: todayImprovExercises)
+        }
+        if isDayFinishedToday {
+            return todayFinishedSession?.completedCardioDurationSeconds ?? 0
+        }
+        return todayPlan.map { WorkoutHistoryManager.completedCardioDuration(for: $0.exercises) } ?? 0
+    }
+
     private var weeklyChartEntries: [WeeklyChartEntry] {
         weeklyStats.flatMap { stat in [
             WeeklyChartEntry(id: "\(stat.dayName)-plan", dayName: stat.dayName, kind: "计划", value: stat.plannedSets),
@@ -95,6 +125,7 @@ struct AnalyticsView: View {
                     todayLiveCard
                     weeklyChart
                     volumeTrendCard
+                    cardioTrendCard
                     historyCard
                     quoteCard
                 }
@@ -197,11 +228,25 @@ extension AnalyticsView {
     private var todayProgressText: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text("\(todayCompletedSets)")
-                    .font(.displayMetricLarge)
-                    .foregroundStyle(Theme.Color.textPrimary)
-                Text("/ \(todayPlannedSets) 组")
-                    .font(.body.weight(.medium))
+                if todayPlannedSets > 0 {
+                    Text("\(todayCompletedSets)")
+                        .font(.displayMetricLarge)
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text("/ \(todayPlannedSets) 组")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Theme.Color.textSecondary)
+                } else {
+                    Text("\(todayCardioDurationSeconds / 60)")
+                        .font(.displayMetricLarge)
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text("分钟有氧")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
+            }
+            if todayPlannedCardio > 0 {
+                Text("\(todayCompletedCardio) / \(todayPlannedCardio) 项有氧 · \(todayCardioDurationSeconds / 60) 分钟")
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
             Text(isImprovActiveToday
@@ -213,12 +258,44 @@ extension AnalyticsView {
     }
 
     private var todayProgressRing: some View {
-        RingProgressView(
-            progress: todayPlannedSets > 0
-                ? Double(todayCompletedSets) / Double(todayPlannedSets)
+        let plannedUnits = todayPlannedSets + todayPlannedCardio
+        let completedUnits = todayCompletedSets + todayCompletedCardio
+        return RingProgressView(
+            progress: plannedUnits > 0
+                ? Double(completedUnits) / Double(plannedUnits)
                 : 0,
             size: 64
         )
+    }
+
+    private var cardioTrendCard: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+            SectionPill(title: "近期有氧时长", systemImage: "figure.run", tint: Theme.Color.tintMint)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            let recent = Array(sessions.prefix(7).reversed())
+            let hasCardio = recent.contains { $0.completedCardioDurationSeconds > 0 }
+
+            if hasCardio {
+                Chart(recent, id: \.persistentModelID) { session in
+                    BarMark(
+                        x: .value("日期", session.sessionDate, unit: .day),
+                        y: .value("分钟", Double(session.completedCardioDurationSeconds) / 60)
+                    )
+                    .foregroundStyle(Theme.Color.success)
+                    .cornerRadius(5)
+                }
+                .frame(height: 160)
+                .chartYAxis { AxisMarks(position: .leading) }
+            } else {
+                Text("完成第一次有氧训练后，这里会显示分钟趋势")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.Color.textSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 80, alignment: .center)
+            }
+        }
+        .tiimoCard()
+        .padding(.horizontal, Theme.Spacing.xl)
     }
 
     // MARK: Weekly chart
@@ -334,7 +411,7 @@ extension AnalyticsView {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
-                Text("\(session.completedSetCount)/\(session.plannedSetCount) 组")
+                Text(historySummary(session))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.accent)
                 Text(session.isComplete ? "已完成" : "部分完成")
@@ -343,6 +420,17 @@ extension AnalyticsView {
             }
         }
         .padding(.vertical, Theme.Spacing.m)
+    }
+
+    private func historySummary(_ session: WorkoutSession) -> String {
+        var parts: [String] = []
+        if session.plannedSetCount > 0 {
+            parts.append("\(session.completedSetCount)/\(session.plannedSetCount) 组")
+        }
+        if session.plannedCardioCount > 0 {
+            parts.append("\(session.completedCardioDurationSeconds / 60) 分有氧")
+        }
+        return parts.isEmpty ? "暂无记录" : parts.joined(separator: " · ")
     }
 
     // MARK: Quote
@@ -367,5 +455,5 @@ extension AnalyticsView {
 
 #Preview {
     AnalyticsView()
-        .modelContainer(for: [WorkoutDay.self, WorkoutSession.self, SetLog.self], inMemory: true)
+        .modelContainer(for: [WorkoutDay.self, WorkoutSession.self, SetLog.self, CardioLog.self], inMemory: true)
 }

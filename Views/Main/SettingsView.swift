@@ -1,12 +1,22 @@
 import SwiftData
 import SwiftUI
 
+private enum PendingNotificationAction {
+    case enableRestReminders
+    case enableDailyReminders
+    case sendTest
+}
+
 struct NotificationSettingsView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var workoutDays: [WorkoutDay]
     @State private var settings = AppSettings.shared
     @State private var authorizationState: NotificationAuthorizationState = .unknown
     @State private var notificationStatusMessage: String?
+    @State private var pendingNotificationAction: PendingNotificationAction?
+    @State private var showNotificationPermissionAlert = false
+    @State private var waitingForNotificationSettings = false
 
     var body: some View {
         Form {
@@ -66,14 +76,43 @@ struct NotificationSettingsView: View {
         .onChange(of: settings.restNotificationsEnabled) { _, enabled in
             Task {
                 if enabled {
-                    _ = await NotificationManager.requestAuthorization()
+                    let allowed = await NotificationManager.requestAuthorization()
+                    if !allowed {
+                        presentPermissionAlert(for: .enableRestReminders)
+                    }
                 }
                 await refreshAuthorizationState()
                 RestTimerCoordinator.shared.rescheduleSystemNotifications()
             }
         }
+        .onChange(of: settings.remindersEnabled) { _, enabled in
+            Task {
+                await refreshDailyReminders(promptOnPermissionDenied: enabled)
+            }
+        }
         .onChange(of: settings.restSoundEnabled) { _, _ in
             RestTimerCoordinator.shared.rescheduleSystemNotifications()
+        }
+        .alert("通知权限未开启", isPresented: $showNotificationPermissionAlert) {
+            Button("取消", role: .cancel) {
+                pendingNotificationAction = nil
+            }
+            Button("前往系统设置") {
+                openNotificationSettings()
+            }
+        } message: {
+            Text("要接收休息结束和训练提醒，请在系统设置中允许 RepDay 发送通知。")
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            if waitingForNotificationSettings {
+                waitingForNotificationSettings = false
+                resumePendingNotificationActionIfAllowed()
+            } else {
+                Task {
+                    await refreshAuthorizationState()
+                }
+            }
         }
     }
 
@@ -87,10 +126,7 @@ struct NotificationSettingsView: View {
         }
 
         if authorizationState == .denied {
-            Button("前往系统设置") {
-                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                openURL(url)
-            }
+            Button("前往系统设置", action: openNotificationSettings)
         }
     }
 
@@ -117,7 +153,6 @@ struct NotificationSettingsView: View {
             .joined(separator: "|")
         return [
             planKey,
-            String(settings.remindersEnabled),
             String(settings.reminderHour),
             String(settings.reminderMinute),
             String(settings.remindersOnPlannedDaysOnly),
@@ -129,7 +164,7 @@ struct NotificationSettingsView: View {
         authorizationState = await NotificationManager.authorizationState()
     }
 
-    private func refreshDailyReminders() async {
+    private func refreshDailyReminders(promptOnPermissionDenied: Bool = false) async {
         let todayName = WorkoutHistoryManager.todayWeekdayString()
         let todayExercises = workoutDays.first(where: { $0.dayName == todayName })?.exercises ?? []
         let completedToday = !todayExercises.isEmpty && todayExercises.allSatisfy(\.isFullyCompletedToday)
@@ -150,6 +185,9 @@ struct NotificationSettingsView: View {
         )
         notificationStatusMessage = message(for: result)
         await refreshAuthorizationState()
+        if result == .permissionDenied, promptOnPermissionDenied {
+            presentPermissionAlert(for: .enableDailyReminders)
+        }
     }
 
     private func sendTestNotification() {
@@ -164,6 +202,44 @@ struct NotificationSettingsView: View {
             case .disabled, .noPlannedDays: nil
             }
             await refreshAuthorizationState()
+            if result == .permissionDenied {
+                presentPermissionAlert(for: .sendTest)
+            }
+        }
+    }
+
+    private func presentPermissionAlert(for action: PendingNotificationAction) {
+        pendingNotificationAction = action
+        showNotificationPermissionAlert = true
+    }
+
+    private func openNotificationSettings() {
+        guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
+        waitingForNotificationSettings = true
+        openURL(url)
+    }
+
+    private func resumePendingNotificationActionIfAllowed() {
+        Task {
+            await refreshAuthorizationState()
+            guard authorizationState == .allowed else {
+                pendingNotificationAction = nil
+                return
+            }
+
+            let action = pendingNotificationAction
+            pendingNotificationAction = nil
+            switch action {
+            case .enableRestReminders:
+                RestTimerCoordinator.shared.rescheduleSystemNotifications()
+                notificationStatusMessage = "系统通知权限已开启"
+            case .enableDailyReminders:
+                await refreshDailyReminders()
+            case .sendTest:
+                sendTestNotification()
+            case nil:
+                break
+            }
         }
     }
 

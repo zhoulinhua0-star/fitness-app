@@ -15,6 +15,7 @@ enum WeekPlanSummary {
         let dayName: String
         let isRestDay: Bool
         let totalSets: Int
+        var cardioMinutes: Int = 0
         let exerciseNames: [String]
     }
     
@@ -22,6 +23,7 @@ enum WeekPlanSummary {
         let shortLabel: String
         let isRestDay: Bool
         let totalSets: Int
+        let cardioMinutes: Int?
         let isToday: Bool
         let focusLabel: String
     }
@@ -30,6 +32,7 @@ enum WeekPlanSummary {
         let trainingDays: Int
         let restDays: Int
         let totalSets: Int
+        let totalCardioMinutes: Int?
         let heaviestDayName: String?
         let heaviestDaySets: Int
         let weekDays: [WeekDayDisplay]
@@ -46,6 +49,7 @@ enum WeekPlanSummary {
         var trainingDays = 0
         var restDays = 0
         var totalSets = 0
+        var totalCardioMinutes = 0
         var heaviestDayName: String?
         var heaviestDaySets = 0
         var weekDays: [WeekDayDisplay] = []
@@ -58,6 +62,7 @@ enum WeekPlanSummary {
             } else {
                 trainingDays += 1
                 totalSets += day.totalSets
+                totalCardioMinutes += day.cardioMinutes
                 if day.totalSets > heaviestDaySets {
                     heaviestDaySets = day.totalSets
                     heaviestDayName = day.dayName
@@ -69,6 +74,7 @@ enum WeekPlanSummary {
                     shortLabel: shortLabels[index],
                     isRestDay: day.isRestDay,
                     totalSets: day.totalSets,
+                    cardioMinutes: day.cardioMinutes,
                     isToday: day.dayName == todayDayName,
                     focusLabel: focusLabel(for: day)
                 )
@@ -81,6 +87,7 @@ enum WeekPlanSummary {
             trainingDays: trainingDays,
             restDays: restDays,
             totalSets: totalSets,
+            totalCardioMinutes: totalCardioMinutes,
             heaviestDayName: heaviestDaySets > 0 ? heaviestDayName : nil,
             heaviestDaySets: heaviestDaySets,
             weekDays: weekDays,

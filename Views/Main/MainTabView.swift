@@ -41,5 +41,5 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
-        .modelContainer(for: [WorkoutDay.self, Exercise.self, WorkoutSession.self, SetLog.self], inMemory: true)
+        .modelContainer(for: [WorkoutDay.self, Exercise.self, WorkoutSession.self, SetLog.self, CardioLog.self], inMemory: true)
 }

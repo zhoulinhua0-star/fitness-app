@@ -382,6 +382,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = RepDay;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "RepDay uses calendar access to create and update your workout schedule in Apple Calendar.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "RepDay 仅在你选择拍摄头像时使用相机，照片只保存在你的设备上。";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "RepDay uses notifications for optional workout reminders and rest timers.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -420,6 +421,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = RepDay;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "RepDay uses calendar access to create and update your workout schedule in Apple Calendar.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "RepDay 仅在你选择拍摄头像时使用相机，照片只保存在你的设备上。";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "RepDay uses notifications for optional workout reminders and rest timers.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

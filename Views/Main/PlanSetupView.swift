@@ -21,6 +21,33 @@ private enum PlanMode: String, CaseIterable {
     }
 }
 
+private enum CalendarSyncIssue: Hashable, Identifiable {
+    case permissionDenied
+    case restricted
+    case failed
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .permissionDenied: "日历权限未开启"
+        case .restricted: "无法访问日历"
+        case .failed: "日历同步失败"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .permissionDenied:
+            "要同步训练计划，请在系统设置中允许 RepDay 完全访问日历。"
+        case .restricted:
+            "这台设备限制了日历访问，可能需要检查家长控制或设备管理设置。"
+        case .failed:
+            "训练计划暂时无法写入日历，请稍后重试。"
+        }
+    }
+}
+
 // A Tiimo-style pill segmented control used to switch between modes.
 private struct PlanModeToggle: View {
     @Binding var mode: PlanMode
@@ -67,10 +94,14 @@ struct PlanSetupView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @Query private var workoutDays: [WorkoutDay]
 
     @State private var isSyncing = false
     @State private var showSuccessFeedback = false
+    @State private var calendarSyncIssue: CalendarSyncIssue?
+    @State private var waitingForCalendarSettings = false
     @State private var planMode: PlanMode = .plan
     @State private var shimmerX: CGFloat = -0.6
 
@@ -93,7 +124,8 @@ struct PlanSetupView: View {
             WeekPlanSummary.DaySnapshot(
                 dayName: day.dayName,
                 isRestDay: day.isRestDay,
-                totalSets: day.exercises.reduce(0) { $0 + $1.sets },
+                totalSets: day.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets },
+                cardioMinutes: day.exercises.filter(\.isCardio).reduce(0) { $0 + $1.targetDurationSeconds } / 60,
                 exerciseNames: day.exercises.sorted { $0.order < $1.order }.map(\.name)
             )
         }
@@ -149,6 +181,30 @@ struct PlanSetupView: View {
                 revertEnglishDayNamesIfNeeded()
                 initializeDefaultDataIfNeeded()
                 WidgetSyncManager.sync(workoutDays: sortedDays, context: modelContext)
+            }
+            .alert(item: $calendarSyncIssue) { issue in
+                if issue == .permissionDenied {
+                    return Alert(
+                        title: Text(issue.title),
+                        message: Text(issue.message),
+                        primaryButton: .cancel(Text("取消")),
+                        secondaryButton: .default(Text("前往系统设置")) {
+                            openCalendarSettings()
+                        }
+                    )
+                }
+                return Alert(
+                    title: Text(issue.title),
+                    message: Text(issue.message),
+                    dismissButton: .default(Text("好"))
+                )
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active, waitingForCalendarSettings else { return }
+                waitingForCalendarSettings = false
+                if CalendarManager.shared.authorizationState == .allowed {
+                    syncToCalendar()
+                }
             }
         }
     }
@@ -284,7 +340,11 @@ struct PlanDayCard: View {
     }
 
     private var totalSets: Int {
-        workoutDay.exercises.reduce(0) { $0 + $1.sets }
+        workoutDay.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets }
+    }
+
+    private var cardioMinutes: Int {
+        workoutDay.exercises.filter(\.isCardio).reduce(0) { $0 + $1.targetDurationSeconds } / 60
     }
 
     private var intensityEmoji: String {
@@ -362,7 +422,9 @@ struct PlanDayCard: View {
                                 .foregroundStyle(Theme.Color.textPrimary)
                                 .lineLimit(1)
                             Spacer()
-                            Text("\(exercise.sets)组")
+                            Text(exercise.isCardio
+                                ? ExerciseFormatting.shortDuration(exercise.targetDurationSeconds)
+                                : "\(exercise.sets)组")
                                 .appScaledFont(size: 11, relativeTo: .caption2)
                                 .foregroundStyle(Theme.Color.textSecondary)
                         }
@@ -385,7 +447,9 @@ struct PlanDayCard: View {
                         .padding(.vertical, 4)
                         .background(intensityColor, in: Capsule())
                     Spacer()
-                    Text("\(totalSets) 组")
+                    Text(cardioMinutes > 0
+                        ? "\(totalSets) 组 · \(cardioMinutes) 分"
+                        : "\(totalSets) 组")
                         .appScaledFont(size: 11, relativeTo: .caption2, weight: .semibold)
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
@@ -424,21 +488,27 @@ struct DayDetailEditorView: View {
     @State private var newExerciseName = ""
     @State private var newSets = 4
     @State private var newReps = 12
+    @State private var newActivityType: ExerciseActivityType = .strength
+    @State private var newDurationSeconds = 20 * 60
+    @State private var showingExercisePicker = false
     @FocusState private var nameFieldFocused: Bool
-
-    /// Common lifts offered as quick-pick chips in the composer.
-    private let quickPicks = ["卧推", "深蹲", "硬拉", "引体向上", "肩上推举", "杠铃划船", "二头弯举", "平板支撑"]
 
     private var sortedExercises: [Exercise] {
         workoutDay.exercises.sorted(by: { $0.order < $1.order })
     }
 
-    var totalSets: Int { workoutDay.exercises.reduce(0) { $0 + $1.sets } }
-    var totalReps: Int { workoutDay.exercises.reduce(0) { $0 + $1.sets * $1.reps } }
+    var totalSets: Int { workoutDay.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets } }
+    var totalReps: Int { workoutDay.exercises.filter { !$0.isCardio }.reduce(0) { $0 + $1.sets * $1.reps } }
+    var cardioMinutes: Int {
+        workoutDay.exercises.filter(\.isCardio).reduce(0) { $0 + $1.targetDurationSeconds } / 60
+    }
 
     /// Rough session estimate: each set ≈ working time (reps×3s) + one rest.
     private var estimatedMinutes: Int {
         let seconds = workoutDay.exercises.reduce(0) { acc, ex in
+            if ex.isCardio {
+                return acc + ex.targetDurationSeconds
+            }
             let restSeconds = ex.restSeconds ?? AppSettings.shared.defaultRestSeconds
             return acc + ex.sets * (ex.reps * 3 + restSeconds)
         }
@@ -474,6 +544,12 @@ struct DayDetailEditorView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("\(workoutDay.dayName) 安排")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingExercisePicker) {
+            ExercisePickerSheet(
+                selectedNames: Set(workoutDay.exercises.map(\.name)),
+                onSelect: addExerciseFromLibrary
+            )
+        }
         .toolbar {
             if !workoutDay.isRestDay && !workoutDay.exercises.isEmpty {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -520,7 +596,11 @@ struct DayDetailEditorView: View {
             divider
             summaryStat(value: "\(totalSets)", label: "总组数", unit: "组")
             divider
-            summaryStat(value: "~\(estimatedMinutes)", label: "预计时长", unit: "分")
+            if cardioMinutes > 0 {
+                summaryStat(value: "\(cardioMinutes)", label: "有氧", unit: "分")
+            } else {
+                summaryStat(value: "~\(estimatedMinutes)", label: "预计时长", unit: "分")
+            }
         }
         .tiimoCard(padding: Theme.Spacing.l)
     }
@@ -630,6 +710,21 @@ struct DayDetailEditorView: View {
             SectionPill(title: "添加新动作", systemImage: "plus.circle.fill", tint: Theme.Color.tintBlue)
 
             VStack(spacing: Theme.Spacing.l) {
+                Button {
+                    showingExercisePicker = true
+                } label: {
+                    Label("浏览动作库", systemImage: "books.vertical.fill")
+                }
+                .buttonStyle(.primaryCTA)
+
+                HStack {
+                    Divider()
+                    Text("或添加自定义动作")
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                    Divider()
+                }
+
                 TextField("", text: $newExerciseName, prompt: Text("输入动作名称").foregroundColor(Theme.Color.textSecondary))
                     .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
@@ -638,34 +733,21 @@ struct DayDetailEditorView: View {
                     .onSubmit(addExercise)
                     .themedField()
 
-                // Quick-pick chips
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.Spacing.s) {
-                        ForEach(quickPicks, id: \.self) { pick in
-                            Button {
-                                newExerciseName = pick
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            } label: {
-                                Text(pick)
-                                    .font(.caption.weight(.medium))
-                                    .foregroundStyle(newExerciseName == pick ? Theme.Color.accent : Theme.Color.textSecondary)
-                                    .padding(.horizontal, Theme.Spacing.m)
-                                    .padding(.vertical, Theme.Spacing.s)
-                                    .background(
-                                        newExerciseName == pick ? Theme.Color.accentSoft : Theme.Color.surfaceMuted,
-                                        in: Capsule()
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
+                Picker("训练类型", selection: $newActivityType) {
+                    ForEach(ExerciseActivityType.allCases) { type in
+                        Text(type.title).tag(type)
                     }
-                    .padding(.horizontal, 2)
                 }
+                .pickerStyle(.segmented)
 
-                HStack(spacing: Theme.Spacing.xl) {
-                    ThemedStepper(title: "训练组数", value: $newSets, range: 1...10)
-                    ThemedStepper(title: "每组次数", value: $newReps, range: 1...99)
-                    Spacer()
+                if newActivityType == .cardio {
+                    DurationSettingControl(title: "目标时长", seconds: $newDurationSeconds)
+                } else {
+                    HStack(spacing: Theme.Spacing.xl) {
+                        ThemedStepper(title: "训练组数", value: $newSets, range: 1...10)
+                        ThemedStepper(title: "每组次数", value: $newReps, range: 1...99)
+                        Spacer()
+                    }
                 }
 
                 Button(action: addExercise) {
@@ -685,11 +767,39 @@ struct DayDetailEditorView: View {
         let trimmed = newExerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         withAnimation {
-            workoutDay.exercises.append(Exercise(name: trimmed, sets: newSets, reps: newReps, order: workoutDay.exercises.count))
+            workoutDay.exercises.append(
+                Exercise(
+                    name: trimmed,
+                    sets: newActivityType == .cardio ? 0 : newSets,
+                    reps: newActivityType == .cardio ? 0 : newReps,
+                    order: workoutDay.exercises.count,
+                    activityType: newActivityType,
+                    trackingMode: newActivityType == .cardio ? .duration : .setsAndReps,
+                    targetDurationSeconds: newActivityType == .cardio ? newDurationSeconds : 0
+                )
+            )
         }
         newExerciseName = ""
         nameFieldFocused = false
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func addExerciseFromLibrary(_ definition: ExerciseDefinition) {
+        guard !workoutDay.exercises.contains(where: { $0.name == definition.name }) else { return }
+        withAnimation {
+            workoutDay.exercises.append(
+                Exercise(
+                    name: definition.name,
+                    sets: definition.trackingMode == .duration ? 0 : definition.defaultSets,
+                    reps: definition.trackingMode == .duration ? 0 : definition.defaultReps,
+                    order: workoutDay.exercises.count,
+                    activityType: definition.activityType,
+                    trackingMode: definition.trackingMode,
+                    targetDurationSeconds: definition.trackingMode == .duration ? definition.defaultDurationSeconds : 0
+                )
+            )
+        }
+        try? modelContext.save()
     }
 
     private func deleteExercise(_ exercise: Exercise) {
@@ -722,7 +832,17 @@ struct DayDetailEditorView: View {
         let base = workoutDay.exercises.count
         withAnimation {
             for (index, ex) in sorted.enumerated() {
-                workoutDay.exercises.append(Exercise(name: ex.name, sets: ex.sets, reps: ex.reps, order: base + index))
+                workoutDay.exercises.append(
+                    Exercise(
+                        name: ex.name,
+                        sets: ex.sets,
+                        reps: ex.reps,
+                        order: base + index,
+                        activityType: ex.activityType,
+                        trackingMode: ex.trackingMode,
+                        targetDurationSeconds: ex.targetDurationSeconds
+                    )
+                )
             }
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -747,7 +867,7 @@ struct ExerciseEditorCard: View {
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
             HStack(spacing: Theme.Spacing.m) {
-                EmojiTile(emoji: ExerciseEmoji.forName(exercise.name))
+                ExerciseIconTile(name: exercise.name, activityType: exercise.activityType)
 
                 TextField("动作名称", text: $exercise.name)
                     .font(.body.weight(.semibold))
@@ -769,42 +889,48 @@ struct ExerciseEditorCard: View {
 
             Divider().background(Theme.Color.hairline)
 
-            HStack(spacing: Theme.Spacing.xl) {
-                ThemedStepper(title: "组数", value: $exercise.sets, range: 1...20)
-                ThemedStepper(title: "次数", value: $exercise.reps, range: 1...100)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("总计")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Theme.Color.textSecondary)
-                    Text("\(exercise.sets * exercise.reps) 次")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Theme.Color.accent)
+            if exercise.isCardio {
+                DurationSettingControl(title: "目标时长", seconds: $exercise.targetDurationSeconds)
+            } else {
+                HStack(spacing: Theme.Spacing.xl) {
+                    ThemedStepper(title: "组数", value: $exercise.sets, range: 1...20)
+                    ThemedStepper(title: "次数", value: $exercise.reps, range: 1...100)
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text("总计")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(Theme.Color.textSecondary)
+                        Text("\(exercise.sets * exercise.reps) 次")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.Color.accent)
+                    }
                 }
             }
 
-            Menu {
-                Button("使用全局默认（\(formattedRest(AppSettings.shared.defaultRestSeconds))）") {
-                    exercise.restSeconds = nil
-                }
-                Divider()
-                ForEach([30, 60, 90, 120, 180], id: \.self) { seconds in
-                    Button(formattedRest(seconds)) {
-                        exercise.restSeconds = seconds
+            if !exercise.isCardio {
+                Menu {
+                    Button("使用全局默认（\(formattedRest(AppSettings.shared.defaultRestSeconds))）") {
+                        exercise.restSeconds = nil
                     }
+                    Divider()
+                    ForEach([30, 60, 90, 120, 180], id: \.self) { seconds in
+                        Button(formattedRest(seconds)) {
+                            exercise.restSeconds = seconds
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Label("动作休息时长", systemImage: "timer")
+                        Spacer()
+                        Text(formattedRest(exercise.restSeconds ?? AppSettings.shared.defaultRestSeconds))
+                            .monospacedDigit()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.Color.textPrimary)
+                    .frame(minHeight: 44)
                 }
-            } label: {
-                HStack {
-                    Label("动作休息时长", systemImage: "timer")
-                    Spacer()
-                    Text(formattedRest(exercise.restSeconds ?? AppSettings.shared.defaultRestSeconds))
-                        .monospacedDigit()
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption.weight(.semibold))
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Theme.Color.textPrimary)
-                .frame(minHeight: 44)
             }
         }
         .tiimoCard()
@@ -821,20 +947,34 @@ extension PlanSetupView {
     private func syncToCalendar() {
         isSyncing = true
         Task {
-            let success = await CalendarManager.shared.requestAccessAndSync(workoutDays: sortedDays)
+            let result = await CalendarManager.shared.requestAccessAndSync(workoutDays: sortedDays)
             await MainActor.run {
                 isSyncing = false
-                if success {
+                switch result {
+                case .success:
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { showSuccessFeedback = true }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         withAnimation(.easeInOut(duration: 0.3)) { showSuccessFeedback = false }
                     }
-                } else {
+                case .permissionDenied:
                     UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    calendarSyncIssue = .permissionDenied
+                case .restricted:
+                    UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                    calendarSyncIssue = .restricted
+                case .failed:
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    calendarSyncIssue = .failed
                 }
             }
         }
+    }
+
+    private func openCalendarSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        waitingForCalendarSettings = true
+        openURL(url)
     }
 
     private static let englishToChineseNames: [String: String] = [
