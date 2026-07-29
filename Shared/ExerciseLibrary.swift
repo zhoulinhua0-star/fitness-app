@@ -118,7 +118,25 @@ enum ExerciseLibrary {
     ]
 
     static func definition(named name: String) -> ExerciseDefinition? {
-        definitions.first { $0.name == name }
+        definitions.first {
+            $0.name == name ||
+                $0.localizedName(languageIdentifier: "zh-Hans")
+                    .localizedCaseInsensitiveCompare(name) == .orderedSame ||
+                $0.localizedName(languageIdentifier: "en")
+                    .localizedCaseInsensitiveCompare(name) == .orderedSame
+        }
+    }
+
+    static func displayName(for storedName: String) -> String {
+        definition(named: storedName)?.localizedName ?? storedName
+    }
+
+    static func displayName(
+        for storedName: String,
+        languageIdentifier: String
+    ) -> String {
+        definition(named: storedName)?
+            .localizedName(languageIdentifier: languageIdentifier) ?? storedName
     }
 
     private static func strength(

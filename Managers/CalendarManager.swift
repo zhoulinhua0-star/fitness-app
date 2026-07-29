@@ -81,16 +81,25 @@ class CalendarManager {
         let calendars = eventStore.calendars(for: .event)
         
         // 1. 寻找或创建一个叫「我的健身课表」的独立日历分类
-        var targetCalendar = calendars.first { $0.title == "我的健身课表" }
+        let calendarTitle = AppLocalization.string("我的健身课表")
+        var targetCalendar = calendars.first {
+            $0.title == calendarTitle ||
+                $0.title == "我的健身课表" ||
+                $0.title == "My Workout Plan"
+        }
         if targetCalendar == nil {
             let newCalendar = EKCalendar(for: .event, eventStore: eventStore)
-            newCalendar.title = "我的健身课表"
+            newCalendar.title = calendarTitle
             newCalendar.source = eventStore.sources.first(where: { $0.sourceType == .local }) ?? eventStore.defaultCalendarForNewEvents?.source
             try eventStore.saveCalendar(newCalendar, commit: true)
             targetCalendar = newCalendar
         }
         
         guard let calendar = targetCalendar else { return false }
+        if calendar.title != calendarTitle {
+            calendar.title = calendarTitle
+            try eventStore.saveCalendar(calendar, commit: true)
+        }
         
         let now = Date()
         let sysCalendar = Calendar.current
@@ -123,7 +132,9 @@ class CalendarManager {
                 
                 let event = EKEvent(eventStore: eventStore)
                 event.calendar = calendar
-                event.title = "💪 今日训练：\(plan.exercises.first?.name ?? "")等"
+                let firstExercise = plan.exercises.first
+                    .map { ExerciseLibrary.displayName(for: $0.name) } ?? ""
+                event.title = AppLocalization.format("💪 今日训练：%@等", firstExercise)
                 event.isAllDay = true
                 event.startDate = startOfDay
                 event.endDate = sysCalendar.date(byAdding: .day, value: 1, to: startOfDay)
@@ -131,9 +142,18 @@ class CalendarManager {
                 // 把动作清单写进日历备注
                 let notes = plan.exercises.map { exercise in
                     if exercise.isCardio {
-                        return "• \(exercise.name): \(ExerciseFormatting.shortDuration(exercise.targetDurationSeconds))"
+                        return AppLocalization.format(
+                            "• %@: %@",
+                            ExerciseLibrary.displayName(for: exercise.name),
+                            ExerciseFormatting.shortDuration(exercise.targetDurationSeconds)
+                        )
                     }
-                    return "• \(exercise.name): \(exercise.sets)组 × \(exercise.reps)次"
+                    return AppLocalization.format(
+                        "• %@: %lld组 × %lld次",
+                        ExerciseLibrary.displayName(for: exercise.name),
+                        exercise.sets,
+                        exercise.reps
+                    )
                 }.joined(separator: "\n")
                 event.notes = notes
                 

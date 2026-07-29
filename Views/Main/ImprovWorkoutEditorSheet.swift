@@ -391,7 +391,7 @@ private struct ImprovEditorExerciseRow: View {
             )
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text(exercise.name)
+                Text(ExerciseLibrary.displayName(for: exercise.name))
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(progressDescription)
@@ -431,13 +431,28 @@ private struct ImprovEditorExerciseRow: View {
         if exercise.isCardio {
             let elapsed = exercise.cardioElapsedSeconds()
             if exercise.isFullyCompletedToday {
-                return "已完成 · \(ExerciseFormatting.shortDuration(elapsed))"
+                return AppLocalization.format(
+                    "已完成 · %@",
+                    ExerciseFormatting.shortDuration(elapsed)
+                )
             }
-            return "目标 \(ExerciseFormatting.shortDuration(exercise.targetDurationSeconds))"
+            return AppLocalization.format(
+                "目标 %@",
+                ExerciseFormatting.shortDuration(exercise.targetDurationSeconds)
+            )
         }
         if exercise.effectiveCompletedSetCount > 0 {
-            return "已完成 \(exercise.effectiveCompletedSetCount) / \(exercise.sets) 组 · 每组 \(exercise.reps) 次"
+            return AppLocalization.format(
+                "已完成 %lld / %lld 组 · 每组 %lld 次",
+                exercise.effectiveCompletedSetCount,
+                exercise.sets,
+                exercise.reps
+            )
         }
-        return "\(exercise.sets) 组 · 每组 \(exercise.reps) 次"
+        return AppLocalization.format(
+            "%lld 组 · 每组 %lld 次",
+            exercise.sets,
+            exercise.reps
+        )
     }
 }

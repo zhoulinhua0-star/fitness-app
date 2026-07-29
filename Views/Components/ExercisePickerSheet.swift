@@ -13,7 +13,8 @@ struct ExercisePickerSheet: View {
     private var filteredDefinitions: [ExerciseDefinition] {
         ExerciseLibrary.definitions.filter { definition in
             let matchesSearch = searchText.isEmpty ||
-                definition.name.localizedCaseInsensitiveContains(searchText)
+                definition.name.localizedCaseInsensitiveContains(searchText) ||
+                definition.localizedName.localizedCaseInsensitiveContains(searchText)
             let matchesType = selectedActivityType.map { definition.activityType == $0 } ?? true
             let matchesBodyPart = selectedBodyPart.map { definition.bodyPart == $0 } ?? true
             return matchesSearch && matchesType && matchesBodyPart
@@ -126,7 +127,7 @@ struct ExercisePickerSheet: View {
                 ExerciseIconTile(definition: definition, size: 44)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(definition.name)
+                    Text(definition.localizedName)
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text(definition.subtitle)
@@ -145,7 +146,11 @@ struct ExercisePickerSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(isSelected)
-        .accessibilityLabel(isSelected ? "\(definition.name)，已添加" : "添加\(definition.name)")
+        .accessibilityLabel(
+            isSelected
+                ? AppLocalization.format("%@，已添加", definition.localizedName)
+                : AppLocalization.format("添加%@", definition.localizedName)
+        )
         .listRowBackground(Theme.Color.surface)
     }
 
@@ -157,7 +162,7 @@ struct ExercisePickerSheet: View {
         Menu(content: content) {
             HStack(spacing: Theme.Spacing.s) {
                 Image(systemName: systemImage)
-                Text(title)
+                Text(AppLocalization.string(title))
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.down")
@@ -186,7 +191,7 @@ struct DurationSettingControl: View {
     var body: some View {
         Stepper(value: minutesBinding, in: 1...180, step: 5) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(title)
+                Text(AppLocalization.string(title))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
                 Text(ExerciseFormatting.shortDuration(seconds))

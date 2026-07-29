@@ -111,8 +111,18 @@ struct AnalyticsView: View {
 
     private var weeklyChartEntries: [WeeklyChartEntry] {
         weeklyStats.flatMap { stat in [
-            WeeklyChartEntry(id: "\(stat.dayName)-plan", dayName: stat.dayName, kind: "计划", value: stat.plannedSets),
-            WeeklyChartEntry(id: "\(stat.dayName)-actual", dayName: stat.dayName, kind: "实际", value: stat.completedSets)
+            WeeklyChartEntry(
+                id: "\(stat.dayName)-plan",
+                dayName: WeekdayDisplay.label(for: stat.dayName),
+                kind: AppLocalization.string("计划"),
+                value: stat.plannedSets
+            ),
+            WeeklyChartEntry(
+                id: "\(stat.dayName)-actual",
+                dayName: WeekdayDisplay.label(for: stat.dayName),
+                kind: AppLocalization.string("实际"),
+                value: stat.completedSets
+            )
         ]}
     }
 
@@ -176,14 +186,14 @@ extension AnalyticsView {
 
     private func statPill(value: String, label: String, unit: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(label)
+            Text(AppLocalization.string(label))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Theme.Color.textSecondary)
             HStack(alignment: .lastTextBaseline, spacing: 4) {
                 Text(value)
                     .font(.displayMetric)
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text(unit)
+                Text(AppLocalization.string(unit))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
@@ -249,9 +259,7 @@ extension AnalyticsView {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
-            Text(isImprovActiveToday
-                ? "即兴训练"
-                : (isDayFinishedToday ? "即兴训练 · 已完成" : (todayPlan?.dayName ?? "")))
+            Text(todayWorkoutLabel)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
@@ -314,8 +322,8 @@ extension AnalyticsView {
                 .cornerRadius(6)
             }
             .chartForegroundStyleScale([
-                "计划": Theme.Color.accentSoft,
-                "实际": Theme.Color.accent
+                AppLocalization.string("计划"): Theme.Color.accentSoft,
+                AppLocalization.string("实际"): Theme.Color.accent
             ])
             .frame(height: 220)
             .chartYAxis { AxisMarks(position: .leading) }
@@ -402,7 +410,7 @@ extension AnalyticsView {
             EmojiTile(emoji: "🏋️", tint: Theme.Color.accentSoft, size: 40)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(session.dayName)
+                Text(AppLocalization.string(session.dayName))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(session.sessionDate, format: .dateTime.month().day().weekday(.abbreviated))
@@ -425,12 +433,38 @@ extension AnalyticsView {
     private func historySummary(_ session: WorkoutSession) -> String {
         var parts: [String] = []
         if session.plannedSetCount > 0 {
-            parts.append("\(session.completedSetCount)/\(session.plannedSetCount) 组")
+            parts.append(
+                AppLocalization.format(
+                    "%lld / %lld 组",
+                    session.completedSetCount,
+                    session.plannedSetCount
+                )
+            )
         }
         if session.plannedCardioCount > 0 {
-            parts.append("\(session.completedCardioDurationSeconds / 60) 分有氧")
+            parts.append(
+                AppLocalization.format(
+                    "%lld 分有氧",
+                    session.completedCardioDurationSeconds / 60
+                )
+            )
         }
-        return parts.isEmpty ? "暂无记录" : parts.joined(separator: " · ")
+        return parts.isEmpty
+            ? AppLocalization.string("暂无记录")
+            : parts.joined(separator: " · ")
+    }
+
+    private var todayWorkoutLabel: String {
+        if isImprovActiveToday {
+            return AppLocalization.string("即兴训练")
+        }
+        if isDayFinishedToday {
+            return [
+                AppLocalization.string("即兴训练"),
+                AppLocalization.string("已完成")
+            ].joined(separator: " · ")
+        }
+        return todayPlan.map { WeekdayDisplay.fullLabel(for: $0.dayName) } ?? ""
     }
 
     // MARK: Quote

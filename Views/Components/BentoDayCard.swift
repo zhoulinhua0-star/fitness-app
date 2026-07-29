@@ -16,7 +16,7 @@ struct BentoDayCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 12) {
-                Text(dayName)
+                Text(WeekdayDisplay.fullLabel(for: dayName))
                     .font(.headline)
                     .foregroundColor(.secondary)
                 

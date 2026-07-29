@@ -80,7 +80,7 @@ struct WorkoutCompletionSummaryView: View {
 
     private func summaryRow(label: String, value: String) -> some View {
         HStack {
-            Text(label)
+            Text(AppLocalization.string(label))
                 .foregroundStyle(Theme.Color.textSecondary)
             Spacer()
             Text(value)

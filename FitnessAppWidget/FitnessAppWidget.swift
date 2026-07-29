@@ -18,6 +18,7 @@ struct FitnessAppWidgetEntry: TimelineEntry {
     let nextWorkoutDayName: String?
     let nextWorkoutPreview: String?
     let weekOverview: WeekPlanSummary.Overview?
+    let languageIdentifier: String
     
     var progress: Double {
         let plannedUnits = totalSets + totalCardio
@@ -27,9 +28,29 @@ struct FitnessAppWidgetEntry: TimelineEntry {
 
     var workSummary: String {
         var parts: [String] = []
-        if totalSets > 0 { parts.append("\(completedSets)/\(totalSets) 组") }
-        if totalCardio > 0 { parts.append("\(completedCardio)/\(totalCardio) 有氧") }
-        return parts.isEmpty ? "暂无训练" : parts.joined(separator: " · ")
+        if totalSets > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld / %lld 组",
+                    languageIdentifier: languageIdentifier,
+                    completedSets,
+                    totalSets
+                )
+            )
+        }
+        if totalCardio > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld/%lld 有氧",
+                    languageIdentifier: languageIdentifier,
+                    completedCardio,
+                    totalCardio
+                )
+            )
+        }
+        return parts.isEmpty
+            ? AppLocalization.string("暂无训练", languageIdentifier: languageIdentifier)
+            : parts.joined(separator: " · ")
     }
     
     static func fromStore(date: Date = .now) -> FitnessAppWidgetEntry {
@@ -49,7 +70,8 @@ struct FitnessAppWidgetEntry: TimelineEntry {
             streak: WidgetDataStore.streak,
             nextWorkoutDayName: WidgetDataStore.nextWorkoutDayName,
             nextWorkoutPreview: WidgetDataStore.nextWorkoutPreview,
-            weekOverview: WidgetDataStore.weekOverview
+            weekOverview: WidgetDataStore.weekOverview,
+            languageIdentifier: WidgetDataStore.languageIdentifier
         )
     }
 }
@@ -68,11 +90,12 @@ struct FitnessAppWidgetProvider: TimelineProvider {
             dayName: "周三",
             isRestDay: false,
             isWorkoutComplete: false,
-            exercisePreview: "硬拉 · 划船",
+            exercisePreview: "硬拉 · 杠铃划船",
             streak: 12,
             nextWorkoutDayName: "周四",
-            nextWorkoutPreview: "推举 · 侧平举",
-            weekOverview: nil
+            nextWorkoutPreview: "肩上推举 · 哑铃侧平举",
+            weekOverview: nil,
+            languageIdentifier: WidgetDataStore.languageIdentifier
         )
     }
     
@@ -92,16 +115,19 @@ struct FitnessAppWidgetEntryView: View {
     var entry: FitnessAppWidgetEntry
     
     var body: some View {
-        switch family {
-        case .systemMedium:
-            mediumView
-        case .accessoryRectangular:
-            accessoryRectangularView
-        case .accessoryInline:
-            accessoryInlineView
-        default:
-            smallView
+        Group {
+            switch family {
+            case .systemMedium:
+                mediumView
+            case .accessoryRectangular:
+                accessoryRectangularView
+            case .accessoryInline:
+                accessoryInlineView
+            default:
+                smallView
+            }
         }
+        .environment(\.locale, Locale(identifier: entry.languageIdentifier))
     }
     
     private var smallView: some View {
@@ -126,11 +152,17 @@ struct FitnessAppWidgetEntryView: View {
             Spacer(minLength: 0)
             
             if let nextDay = entry.nextWorkoutDayName {
-                Text("下次：\(nextDay)")
+                Text(
+                    AppLocalization.format(
+                        "下次：%@",
+                        languageIdentifier: entry.languageIdentifier,
+                        localizedDay(nextDay)
+                    )
+                )
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 if let preview = entry.nextWorkoutPreview, !preview.isEmpty {
-                    Text(preview)
+                    Text(localizedExercisePreview(preview))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -161,7 +193,7 @@ struct FitnessAppWidgetEntryView: View {
     private var trainingSmallView: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(entry.dayName)
+                Text(localizedDay(entry.dayName))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -177,7 +209,7 @@ struct FitnessAppWidgetEntryView: View {
                 .tint(Color.accentColor)
             
             if !entry.exercisePreview.isEmpty {
-                Text(entry.exercisePreview)
+                Text(localizedExercisePreview(entry.exercisePreview))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -202,13 +234,27 @@ struct FitnessAppWidgetEntryView: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.green)
                     } else {
-                        Text("\(entry.dayName) · 训练中")
+                        Text(
+                            [
+                                localizedDay(entry.dayName),
+                                AppLocalization.string(
+                                    "训练中",
+                                    languageIdentifier: entry.languageIdentifier
+                                )
+                            ].joined(separator: " · ")
+                        )
                             .font(.subheadline.weight(.semibold))
                     }
                     
                     if entry.isRestDay {
                         if let nextDay = entry.nextWorkoutDayName {
-                            Text("下次 \(nextDay)")
+                            Text(
+                                AppLocalization.format(
+                                    "下次 %@",
+                                    languageIdentifier: entry.languageIdentifier,
+                                    localizedDay(nextDay)
+                                )
+                            )
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -237,7 +283,7 @@ struct FitnessAppWidgetEntryView: View {
             }
             
             if !entry.exercisePreview.isEmpty && !entry.isRestDay {
-                Text(entry.exercisePreview)
+                Text(localizedExercisePreview(entry.exercisePreview))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -247,9 +293,31 @@ struct FitnessAppWidgetEntryView: View {
     }
 
     private func weekSummary(_ overview: WeekPlanSummary.Overview) -> String {
-        var parts = ["\(overview.trainingDays)练"]
-        if overview.totalSets > 0 { parts.append("\(overview.totalSets)组") }
-        if let minutes = overview.totalCardioMinutes, minutes > 0 { parts.append("\(minutes)分有氧") }
+        var parts = [
+            AppLocalization.format(
+                "%lld练",
+                languageIdentifier: entry.languageIdentifier,
+                overview.trainingDays
+            )
+        ]
+        if overview.totalSets > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld组",
+                    languageIdentifier: entry.languageIdentifier,
+                    overview.totalSets
+                )
+            )
+        }
+        if let minutes = overview.totalCardioMinutes, minutes > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld分有氧",
+                    languageIdentifier: entry.languageIdentifier,
+                    minutes
+                )
+            )
+        }
         return parts.joined(separator: " · ")
     }
     
@@ -262,12 +330,18 @@ struct FitnessAppWidgetEntryView: View {
                 Text(entry.workSummary)
                     .font(.headline)
             } else {
-                Text("\(entry.dayName) · \(entry.workSummary)")
+                Text("\(localizedDay(entry.dayName)) · \(entry.workSummary)")
                     .font(.headline)
             }
             
             if entry.isRestDay, let nextDay = entry.nextWorkoutDayName {
-                Text("下次 \(nextDay)")
+                Text(
+                    AppLocalization.format(
+                        "下次 %@",
+                        languageIdentifier: entry.languageIdentifier,
+                        localizedDay(nextDay)
+                    )
+                )
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if !entry.isWorkoutComplete && !entry.isRestDay {
@@ -284,7 +358,7 @@ struct FitnessAppWidgetEntryView: View {
         } else if entry.isWorkoutComplete {
             Text(entry.workSummary)
         } else {
-            Text("\(entry.dayName) \(entry.workSummary)")
+            Text("\(localizedDay(entry.dayName)) \(entry.workSummary)")
         }
     }
     
@@ -293,7 +367,12 @@ struct FitnessAppWidgetEntryView: View {
         HStack(spacing: compact ? 2 : 4) {
             ForEach(Array(days.enumerated()), id: \.offset) { _, day in
                 VStack(spacing: 2) {
-                    Text(day.shortLabel)
+                    Text(
+                        AppLocalization.string(
+                            day.shortLabel,
+                            languageIdentifier: entry.languageIdentifier
+                        )
+                    )
                         .font(.system(size: compact ? 9 : 10, weight: day.isToday ? .bold : .regular))
                         .foregroundStyle(day.isToday ? Color.accentColor : .secondary)
                     
@@ -304,6 +383,25 @@ struct FitnessAppWidgetEntryView: View {
                 .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    private func localizedDay(_ storedDayName: String) -> String {
+        WeekdayDisplay.fullLabel(
+            for: storedDayName,
+            languageIdentifier: entry.languageIdentifier
+        )
+    }
+
+    private func localizedExercisePreview(_ preview: String) -> String {
+        preview
+            .components(separatedBy: " · ")
+            .map {
+                ExerciseLibrary.displayName(
+                    for: $0,
+                    languageIdentifier: entry.languageIdentifier
+                )
+            }
+            .joined(separator: " · ")
     }
 }
 

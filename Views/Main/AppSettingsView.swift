@@ -1,10 +1,51 @@
 import SwiftUI
+import UIKit
 
 struct AppSettingsView: View {
     @State private var settings = AppSettings.shared
+    @State private var profile = LocalProfileStore.shared
+    @State private var avatarImage: UIImage?
 
     var body: some View {
         Form {
+            Section {
+                NavigationLink {
+                    ProfileEditorView()
+                } label: {
+                    HStack(spacing: Theme.Spacing.m) {
+                        profileAvatar
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(
+                                profile.hasDisplayName
+                                    ? profile.displayName
+                                    : AppLocalization.string("设置昵称")
+                            )
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(
+                                    profile.hasDisplayName
+                                        ? Theme.Color.textPrimary
+                                        : Theme.Color.accent
+                                )
+                            Text(
+                                profile.bio.isEmpty
+                                    ? AppLocalization.string("头像、昵称与个性签名")
+                                    : profile.bio
+                            )
+                                .font(.caption)
+                                .foregroundStyle(Theme.Color.textSecondary)
+                                .lineLimit(2)
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xs)
+                }
+                .accessibilityHint("打开个人资料编辑页面")
+            } header: {
+                Text("个人资料")
+            } footer: {
+                Text("个人资料仅保存在你的设备上。")
+            }
+
             Section {
                 NavigationLink {
                     GeneralSettingsView()
@@ -39,6 +80,31 @@ struct AppSettingsView: View {
         }
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            avatarImage = ProfileAvatarStore.load()
+        }
+    }
+
+    private var profileAvatar: some View {
+        Group {
+            if let avatarImage {
+                Image(uiImage: avatarImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    Circle().fill(Theme.Color.accentSoft)
+                    Text("💪")
+                        .font(.title2)
+                }
+            }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(Theme.Color.hairline, lineWidth: avatarImage == nil ? 0 : 1)
+        )
     }
 }
 
@@ -48,6 +114,17 @@ private struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section {
+                NavigationLink {
+                    LanguageSettingsView()
+                } label: {
+                    HStack {
+                        Label("语言", systemImage: "globe")
+                        Spacer()
+                        Text(settings.languagePreference.languageName)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 NavigationLink {
                     TextSizeSettingsView()
                 } label: {
@@ -64,6 +141,46 @@ private struct GeneralSettingsView: View {
         }
         .navigationTitle("通用")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct LanguageSettingsView: View {
+    @State private var settings = AppSettings.shared
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("App 语言", selection: $settings.languagePreference) {
+                    ForEach(AppLanguagePreference.allCases) { preference in
+                        HStack {
+                            Text(preference.languageName)
+                            if preference == .system {
+                                Spacer()
+                                Text(systemLanguageDetail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tag(preference)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } header: {
+                Text("App 语言")
+            } footer: {
+                Text("更改会立即应用到 App、训练提醒和桌面小组件，无需重新启动。自定义动作名称和个性签名会保持原样。")
+            }
+        }
+        .navigationTitle("语言")
+        .navigationBarTitleDisplayMode(.inline)
+        .sensoryFeedback(.selection, trigger: settings.languagePreference)
+    }
+
+    private var systemLanguageDetail: String {
+        AppLanguagePreference.system.resolvedIdentifier().hasPrefix("zh")
+            ? "简体中文"
+            : "English"
     }
 }
 

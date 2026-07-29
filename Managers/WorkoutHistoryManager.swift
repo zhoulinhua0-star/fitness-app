@@ -229,7 +229,7 @@ enum WorkoutHistoryManager {
             
             let setCount = logs.count
             let reps = logs.first?.reps ?? 0
-            return "上次: \(setCount)组 × \(reps)次"
+            return AppLocalization.format("上次: %lld组 × %lld次", setCount, reps)
         }
         return nil
     }
@@ -247,7 +247,10 @@ enum WorkoutHistoryManager {
             guard let log = session.cardioLogs
                 .filter({ $0.exerciseName == exerciseName })
                 .max(by: { $0.loggedAt < $1.loggedAt }) else { continue }
-            return "上次: \(ExerciseFormatting.shortDuration(log.durationSeconds))"
+            return AppLocalization.format(
+                "上次: %@",
+                ExerciseFormatting.shortDuration(log.durationSeconds)
+            )
         }
         return nil
     }

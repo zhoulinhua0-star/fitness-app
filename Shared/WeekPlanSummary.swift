@@ -100,8 +100,7 @@ enum WeekPlanSummary {
     private static func focusLabel(for day: DaySnapshot) -> String {
         if day.isRestDay { return "休" }
         guard let first = day.exerciseNames.first else { return "待定" }
-        if first.count <= 4 { return first }
-        return String(first.prefix(4))
+        return first
     }
     
     private static func preview(for day: DaySnapshot) -> String {

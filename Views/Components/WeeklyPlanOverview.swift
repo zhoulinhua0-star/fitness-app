@@ -9,18 +9,54 @@ struct WeeklyPlanOverview: View {
     let overview: WeekPlanSummary.Overview
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.locale) private var locale
     @State private var showCalendar = false
 
     private var summaryLine: String {
-        var parts = ["\(overview.trainingDays) 练", "\(overview.restDays) 休"]
-        if overview.totalSets > 0 { parts.append("共 \(overview.totalSets) 组") }
-        if let minutes = overview.totalCardioMinutes, minutes > 0 { parts.append("\(minutes) 分有氧") }
+        var parts = [
+            AppLocalization.format(
+                "%lld 练",
+                languageIdentifier: locale.identifier,
+                overview.trainingDays
+            ),
+            AppLocalization.format(
+                "%lld 休",
+                languageIdentifier: locale.identifier,
+                overview.restDays
+            )
+        ]
+        if overview.totalSets > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "共 %lld 组",
+                    languageIdentifier: locale.identifier,
+                    overview.totalSets
+                )
+            )
+        }
+        if let minutes = overview.totalCardioMinutes, minutes > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld 分有氧",
+                    languageIdentifier: locale.identifier,
+                    minutes
+                )
+            )
+        }
         return parts.joined(separator: " · ")
     }
 
     private var heaviestLine: String? {
         guard let name = overview.heaviestDayName, overview.heaviestDaySets > 0 else { return nil }
-        return "最重：\(name) · \(overview.heaviestDaySets) 组"
+        return AppLocalization.format(
+            "最重：%@ · %lld 组",
+            languageIdentifier: locale.identifier,
+            WeekdayDisplay.fullLabel(
+                for: name,
+                languageIdentifier: locale.identifier
+            ),
+            overview.heaviestDaySets
+        )
     }
 
     var body: some View {
@@ -69,10 +105,15 @@ struct WeeklyPlanOverview: View {
                 VStack(spacing: 0) {
                     ForEach(Array(overview.weekDays.enumerated()), id: \.offset) { index, day in
                         HStack {
-                            Text(day.shortLabel)
+                            Text(
+                                AppLocalization.string(
+                                    day.shortLabel,
+                                    languageIdentifier: locale.identifier
+                                )
+                            )
                                 .font(.body.weight(day.isToday ? .bold : .regular))
                                 .foregroundStyle(day.isToday ? Theme.Color.accent : Theme.Color.textSecondary)
-                            Text(day.focusLabel)
+                            Text(localizedFocusLabel(day.focusLabel))
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(day.isRestDay ? Theme.Color.success : Theme.Color.textPrimary)
                             Spacer()
@@ -92,7 +133,12 @@ struct WeeklyPlanOverview: View {
                 HStack(spacing: 0) {
                     ForEach(Array(overview.weekDays.enumerated()), id: \.offset) { _, day in
                         VStack(spacing: Theme.Spacing.xs) {
-                            Text(day.shortLabel)
+                            Text(
+                                AppLocalization.string(
+                                    day.shortLabel,
+                                    languageIdentifier: locale.identifier
+                                )
+                            )
                                 .appScaledFont(
                                     size: 11,
                                     relativeTo: .caption2,
@@ -100,7 +146,7 @@ struct WeeklyPlanOverview: View {
                                 )
                                 .foregroundStyle(day.isToday ? Theme.Color.accent : Theme.Color.textSecondary)
 
-                            Text(day.focusLabel)
+                            Text(localizedFocusLabel(day.focusLabel))
                                 .appScaledFont(size: 11, relativeTo: .caption2, weight: .semibold)
                                 .foregroundStyle(day.isRestDay ? Theme.Color.success : Theme.Color.textPrimary)
                                 .lineLimit(1)
@@ -129,8 +175,42 @@ struct WeeklyPlanOverview: View {
 
     private func daySummary(_ day: WeekPlanSummary.WeekDayDisplay) -> String {
         var parts: [String] = []
-        if day.totalSets > 0 { parts.append("\(day.totalSets)组") }
-        if let minutes = day.cardioMinutes, minutes > 0 { parts.append("\(minutes)分") }
-        return parts.isEmpty ? "待定" : parts.joined(separator: "·")
+        if day.totalSets > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld组",
+                    languageIdentifier: locale.identifier,
+                    day.totalSets
+                )
+            )
+        }
+        if let minutes = day.cardioMinutes, minutes > 0 {
+            parts.append(
+                AppLocalization.format(
+                    "%lld 分钟",
+                    languageIdentifier: locale.identifier,
+                    minutes
+                )
+            )
+        }
+        return parts.isEmpty
+            ? AppLocalization.string(
+                "待定",
+                languageIdentifier: locale.identifier
+            )
+            : parts.joined(separator: " · ")
+    }
+
+    private func localizedFocusLabel(_ value: String) -> String {
+        if value == "休" || value == "待定" {
+            return AppLocalization.string(
+                value,
+                languageIdentifier: locale.identifier
+            )
+        }
+        return ExerciseLibrary.displayName(
+            for: value,
+            languageIdentifier: locale.identifier
+        )
     }
 }

@@ -2,87 +2,57 @@
 //  ProfileView.swift
 //  FitnessApp
 //
-//  "Me" tab — Tiimo-style: avatar card with key stats at the top,
-//  then the existing app settings below. All settings logic is unchanged.
+//  "Me" tab — local profile, training progress, and app settings.
 //
 
 import SwiftUI
 import SwiftData
-import PhotosUI
-import AVFoundation
 
 struct ProfileView: View {
     @State private var copiedEmail: String?
     @State private var avatarImage: UIImage?
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var isAvatarMenuPresented = false
-    @State private var isCameraPresented = false
-    @State private var isProcessingAvatar = false
-    @State private var avatarFrame: CGRect = .zero
-    @State private var avatarAlert: AvatarAlert?
+    @State private var profile = LocalProfileStore.shared
     @Environment(\.openURL) private var openURL
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
-    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \WorkoutSession.sessionDate, order: .reverse) private var sessions: [WorkoutSession]
 
     private var streak: Int { WorkoutHistoryManager.currentStreak(context: modelContext) }
+    private var trainingProgress: TrainingProgress {
+        let calendar = Calendar.current
+        let days = Set(
+            sessions
+                .filter { $0.completedSetCount > 0 || $0.completedCardioCount > 0 }
+                .map { calendar.startOfDay(for: $0.sessionDate) }
+        )
+        return TrainingProgress(effectiveTrainingDays: days.count)
+    }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: Theme.Spacing.xl) {
-                        pageHeader
-                        heroCard
-                        settingsSection
-                        aboutSection
-                        feedbackSection
-                    }
-                    .padding(.top, Theme.Spacing.s)
-                    .padding(.bottom, Theme.Spacing.xxl)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: Theme.Spacing.xl) {
+                    pageHeader
+                    heroCard
+                    settingsSection
+                    aboutSection
+                    feedbackSection
+                    brandFooter
                 }
-                .blur(radius: isAvatarMenuPresented ? 1.5 : 0)
-                .allowsHitTesting(!isAvatarMenuPresented)
-                .alert("邮箱已复制", isPresented: copiedEmailAlertBinding) {
-                    Button("好", role: .cancel) { }
-                } message: {
-                    if let copiedEmail {
-                        Text("\(copiedEmail) 已复制到剪贴板")
-                    }
-                }
-
-                if isAvatarMenuPresented {
-                    avatarMenuOverlay
-                        .transition(
-                            accessibilityReduceMotion
-                                ? .opacity
-                                : .opacity.combined(with: .scale(scale: 0.94, anchor: .top))
-                        )
-                        .zIndex(10)
+                .padding(.top, Theme.Spacing.s)
+                .padding(.bottom, Theme.Spacing.xxl)
+            }
+            .alert("邮箱已复制", isPresented: copiedEmailAlertBinding) {
+                Button("好", role: .cancel) { }
+            } message: {
+                if let copiedEmail {
+                    Text("\(copiedEmail) 已复制到剪贴板")
                 }
             }
-            .coordinateSpace(name: "profileRoot")
-            .onPreferenceChange(AvatarFramePreferenceKey.self) { avatarFrame = $0 }
             .background(Theme.Color.background.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
-            .task {
+            .onAppear {
                 avatarImage = ProfileAvatarStore.load()
-            }
-            .onChange(of: selectedPhotoItem) { _, newItem in
-                guard let newItem else { return }
-                setAvatarMenuPresented(false)
-                loadPhoto(from: newItem)
-            }
-            .fullScreenCover(isPresented: $isCameraPresented) {
-                ProfileAvatarCameraPicker { image in
-                    saveAvatar(image)
-                }
-                .ignoresSafeArea()
-            }
-            .alert(item: $avatarAlert) { alert in
-                avatarAlertView(for: alert)
             }
         }
     }
@@ -106,335 +76,189 @@ struct ProfileView: View {
 
     private var heroCard: some View {
         VStack(spacing: Theme.Spacing.l) {
-            avatarButton
-
-            Text(Brand.name)
-                .font(.displayMedium)
-                .foregroundStyle(Theme.Color.textPrimary)
-            Text(Brand.slogan)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(Theme.Color.textSecondary)
+            profileIdentity
 
             Divider().background(Theme.Color.hairline)
 
-            // Stats row
+            trainingLevelProgress
+
+            Divider().background(Theme.Color.hairline)
+
             profileStats
         }
         .tiimoCard(padding: Theme.Spacing.xl)
         .padding(.horizontal, Theme.Spacing.xl)
     }
 
-    // MARK: Avatar
+    private var profileIdentity: some View {
+        NavigationLink(destination: ProfileEditorView()) {
+            VStack(spacing: Theme.Spacing.m) {
+                ZStack(alignment: .bottomTrailing) {
+                    profileAvatar(size: 88)
 
-    private var avatarButton: some View {
-        Button {
-            guard !isProcessingAvatar else { return }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            setAvatarMenuPresented(!isAvatarMenuPresented)
-        } label: {
-            ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if let avatarImage {
-                        Image(uiImage: avatarImage)
-                            .resizable()
-                            .scaledToFill()
-                            .transition(.opacity)
-                    } else {
-                        ZStack {
-                            Circle().fill(Theme.Color.accentSoft)
-                            Text("💪")
-                                .font(.system(size: 44))
-                        }
-                        .transition(.opacity)
+                    ZStack {
+                        Circle().fill(Theme.Color.surface)
+                        Image(systemName: "pencil")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.Color.textPrimary)
                     }
-                }
-                .frame(width: 88, height: 88)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Theme.Color.surface, lineWidth: avatarImage == nil ? 0 : 2)
-                )
-
-                ZStack {
-                    Circle().fill(Theme.Color.surface)
-                    Image(systemName: "camera.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Theme.Color.textPrimary)
-                }
-                .frame(width: 30, height: 30)
-                .overlay(
-                    Circle()
-                        .stroke(Theme.Color.hairline, lineWidth: 1)
-                )
-                .shadow(color: Theme.Shadow.color, radius: 5, y: 2)
-
-                if isProcessingAvatar {
-                    Circle()
-                        .fill(Color.black.opacity(0.25))
-                        .frame(width: 88, height: 88)
-                    ProgressView()
-                        .tint(.white)
-                        .frame(width: 88, height: 88)
-                }
-            }
-            .contentShape(Circle())
-            .scaleEffect(
-                isAvatarMenuPresented && !accessibilityReduceMotion ? 1.045 : 1
-            )
-        }
-        .buttonStyle(ProfileAvatarPressStyle())
-        .disabled(isProcessingAvatar)
-        .background {
-            GeometryReader { proxy in
-                Color.clear.preference(
-                    key: AvatarFramePreferenceKey.self,
-                    value: proxy.frame(in: .named("profileRoot"))
-                )
-            }
-        }
-        .accessibilityLabel(avatarImage == nil ? "设置头像" : "更换头像")
-        .accessibilityHint("打开照片图库和相机选项")
-        .animation(
-            accessibilityReduceMotion
-                ? nil
-                : .spring(response: 0.28, dampingFraction: 0.82),
-            value: isAvatarMenuPresented
-        )
-    }
-
-    private var avatarMenuOverlay: some View {
-        GeometryReader { proxy in
-            let menuWidth = min(276, proxy.size.width - Theme.Spacing.xl * 2)
-            let rowCount: CGFloat = avatarImage == nil ? 2 : 3
-            let menuHeight = rowCount * 56 + 16
-            let halfWidth = menuWidth / 2
-            let halfHeight = menuHeight / 2
-            let menuX = min(
-                max(avatarFrame.midX, halfWidth + Theme.Spacing.xl),
-                proxy.size.width - halfWidth - Theme.Spacing.xl
-            )
-            let preferredY = avatarFrame.maxY + Theme.Spacing.l + halfHeight
-            let menuY = min(
-                preferredY,
-                proxy.size.height - halfHeight - Theme.Spacing.xl
-            )
-
-            ZStack {
-                Color.black
-                    .opacity(colorScheme == .dark ? 0.42 : 0.18)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        setAvatarMenuPresented(false)
-                    }
-                    .accessibilityLabel("关闭头像菜单")
-                    .accessibilityAddTraits(.isButton)
-
-                avatarSourceMenu
-                    .frame(width: menuWidth)
-                    .position(x: menuX, y: menuY)
-            }
-        }
-    }
-
-    private var avatarSourceMenu: some View {
-        VStack(spacing: 0) {
-            PhotosPicker(
-                selection: $selectedPhotoItem,
-                matching: .images,
-                photoLibrary: .shared()
-            ) {
-                avatarMenuRow(title: "照片图库", systemImage: "photo.on.rectangle")
-            }
-            .buttonStyle(.plain)
-
-            avatarMenuDivider
-
-            Button {
-                startCamera()
-            } label: {
-                avatarMenuRow(title: "拍照", systemImage: "camera")
-            }
-            .buttonStyle(.plain)
-
-            if avatarImage != nil {
-                avatarMenuDivider
-
-                Button(role: .destructive) {
-                    deleteAvatar()
-                } label: {
-                    avatarMenuRow(
-                        title: "删除头像",
-                        systemImage: "trash",
-                        tint: Theme.Color.accent
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        Circle()
+                            .stroke(Theme.Color.hairline, lineWidth: 1)
                     )
+                    .shadow(color: Theme.Shadow.color, radius: 5, y: 2)
                 }
-                .buttonStyle(.plain)
+
+                profileNameAndLevel
+
+                Text(profileSubtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Theme.Color.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("打开个人资料编辑页面")
+    }
+
+    private func profileAvatar(size: CGFloat) -> some View {
+        Group {
+            if let avatarImage {
+                Image(uiImage: avatarImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    Circle().fill(Theme.Color.accentSoft)
+                    Text("💪")
+                        .font(.system(size: 44))
+                }
             }
         }
-        .padding(.vertical, Theme.Spacing.s)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .frame(width: size, height: size)
+        .clipShape(Circle())
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(
-                    colorScheme == .dark
-                        ? Color.white.opacity(0.12)
-                        : Theme.Color.hairline,
-                    lineWidth: 1
-                )
+            Circle()
+                .stroke(Theme.Color.surface, lineWidth: avatarImage == nil ? 0 : 2)
         )
-        .shadow(color: Color.black.opacity(0.18), radius: 24, y: 12)
-        .accessibilityElement(children: .contain)
-        .accessibilityAddTraits(.isModal)
     }
 
-    private var avatarMenuDivider: some View {
-        Divider()
-            .background(Theme.Color.hairline)
-            .padding(.leading, 56)
-    }
-
-    private func avatarMenuRow(
-        title: String,
-        systemImage: String,
-        tint: Color = Theme.Color.textPrimary
-    ) -> some View {
-        HStack(spacing: Theme.Spacing.l) {
-            Image(systemName: systemImage)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(tint)
-                .frame(width: 24)
-
-            Text(title)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(tint)
-
-            Spacer()
-        }
-        .padding(.horizontal, Theme.Spacing.l)
-        .frame(minHeight: 56)
-        .contentShape(Rectangle())
-    }
-
-    private func setAvatarMenuPresented(_ isPresented: Bool) {
-        if accessibilityReduceMotion {
-            isAvatarMenuPresented = isPresented
+    @ViewBuilder
+    private var profileNameAndLevel: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: Theme.Spacing.s) {
+                profileName
+                levelBadge
+            }
         } else {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                isAvatarMenuPresented = isPresented
+            HStack(spacing: Theme.Spacing.s) {
+                profileName
+                levelBadge
             }
         }
     }
 
-    private func loadPhoto(from item: PhotosPickerItem) {
-        isProcessingAvatar = true
-        Task {
-            defer {
-                selectedPhotoItem = nil
-                isProcessingAvatar = false
-            }
-
-            do {
-                guard
-                    let data = try await item.loadTransferable(type: Data.self),
-                    let image = UIImage(data: data)
-                else {
-                    avatarAlert = .photoLoadFailed
-                    return
-                }
-                persistAvatar(image)
-            } catch {
-                avatarAlert = .photoLoadFailed
-            }
-        }
-    }
-
-    private func saveAvatar(_ image: UIImage) {
-        isProcessingAvatar = true
-        persistAvatar(image)
-        isProcessingAvatar = false
-    }
-
-    private func persistAvatar(_ image: UIImage) {
-        do {
-            let storedImage = try ProfileAvatarStore.save(image)
-            if accessibilityReduceMotion {
-                avatarImage = storedImage
-            } else {
-                withAnimation(.easeOut(duration: 0.22)) {
-                    avatarImage = storedImage
-                }
-            }
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        } catch {
-            avatarAlert = .saveFailed
-        }
-    }
-
-    private func deleteAvatar() {
-        setAvatarMenuPresented(false)
-        do {
-            try ProfileAvatarStore.delete()
-            if accessibilityReduceMotion {
-                avatarImage = nil
-            } else {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    avatarImage = nil
-                }
-            }
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        } catch {
-            avatarAlert = .saveFailed
-        }
-    }
-
-    private func startCamera() {
-        setAvatarMenuPresented(false)
-
-        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            avatarAlert = .cameraUnavailable
-            return
-        }
-
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            isCameraPresented = true
-        case .notDetermined:
-            Task {
-                let granted = await AVCaptureDevice.requestAccess(for: .video)
-                if granted {
-                    isCameraPresented = true
-                } else {
-                    avatarAlert = .cameraPermissionDenied
-                }
-            }
-        case .denied, .restricted:
-            avatarAlert = .cameraPermissionDenied
-        @unknown default:
-            avatarAlert = .cameraUnavailable
-        }
-    }
-
-    private func avatarAlertView(for alert: AvatarAlert) -> Alert {
-        switch alert {
-        case .cameraPermissionDenied:
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                primaryButton: .default(Text("前往设置")) {
-                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    openURL(url)
-                },
-                secondaryButton: .cancel(Text("取消"))
+    private var profileName: some View {
+        Text(
+            profile.hasDisplayName
+                ? profile.displayName
+                : AppLocalization.string("设置昵称")
+        )
+            .font(.displayMedium)
+            .foregroundStyle(
+                profile.hasDisplayName
+                    ? Theme.Color.textPrimary
+                    : Theme.Color.accent
             )
-        default:
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("好"))
+            .multilineTextAlignment(.center)
+    }
+
+    private var levelBadge: some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            Image(systemName: "shield.fill")
+            if let level = trainingProgress.currentLevel {
+                Text("Lv.\(level.number) \(level.title)")
+            } else {
+                Text("待启程")
+            }
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(Theme.Color.accent)
+        .padding(.horizontal, Theme.Spacing.s)
+        .frame(minHeight: 28)
+        .background(Theme.Color.accentSoft, in: Capsule())
+        .accessibilityElement(children: .combine)
+    }
+
+    private var profileSubtitle: String {
+        if !profile.bio.isEmpty {
+            return profile.bio
+        }
+        if trainingProgress.effectiveTrainingDays == 0 {
+            return AppLocalization.string("从今天开始，记录第一次训练")
+        }
+        return AppLocalization.format(
+            "已记录 %lld 个有效训练日",
+            trainingProgress.effectiveTrainingDays
+        )
+    }
+
+    private var trainingLevelProgress: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            HStack(spacing: Theme.Spacing.s) {
+                Image(systemName: "shield.checkered")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.Color.accent)
+                    .frame(width: 32, height: 32)
+                    .background(Theme.Color.accentSoft, in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(trainingLevelTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.Color.textPrimary)
+                    Text(trainingLevelDetail)
+                        .font(.caption)
+                        .foregroundStyle(Theme.Color.textSecondary)
+                }
+            }
+
+            ProgressView(value: trainingProgress.progressFraction)
+                .tint(Theme.Color.accent)
+                .accessibilityLabel("训练等级进度")
+                .accessibilityValue(trainingLevelDetail)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var trainingLevelTitle: String {
+        guard let level = trainingProgress.currentLevel else {
+            return AppLocalization.string("准备启程")
+        }
+        return "Lv.\(level.number) · \(level.title)"
+    }
+
+    private var trainingLevelDetail: String {
+        let dayCount = trainingProgress.effectiveTrainingDays
+        guard let nextLevel = trainingProgress.nextLevel else {
+            return AppLocalization.format(
+                "已完成 %lld 个有效训练日 · 当前最高等级",
+                dayCount
             )
         }
+        if trainingProgress.currentLevel == nil {
+            return AppLocalization.format(
+                "完成第一次有效训练即可达到 Lv.%lld",
+                nextLevel.number
+            )
+        }
+        return AppLocalization.format(
+            "已完成 %lld 个有效训练日 · 再训练 %lld 个训练日升级",
+            dayCount,
+            trainingProgress.daysToNextLevel
+        )
     }
 
     @ViewBuilder
@@ -476,11 +300,11 @@ struct ProfileView: View {
                 Text(value)
                     .font(.displayMetricSmall)
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text(unit)
+                Text(AppLocalization.string(unit))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
-            Text(label)
+            Text(AppLocalization.string(label))
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }
@@ -506,7 +330,7 @@ struct ProfileView: View {
                         Text("设置")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(Theme.Color.textPrimary)
-                        Text("通用、训练与通知")
+                        Text("个人资料、通用、训练与通知")
                             .font(.caption)
                             .foregroundStyle(Theme.Color.textSecondary)
                     }
@@ -581,7 +405,7 @@ struct ProfileView: View {
 
     private func aboutRow(label: String, value: String) -> some View {
         HStack {
-            Text(label)
+            Text(AppLocalization.string(label))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.Color.textPrimary)
             Spacer()
@@ -604,9 +428,6 @@ struct ProfileView: View {
                     Text("有建议或发现问题？欢迎直接联系我。")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
-                    Text("Suggestions and feedback are always welcome.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.Color.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Theme.Spacing.l)
@@ -658,7 +479,7 @@ struct ProfileView: View {
                     .background(Theme.Color.accentSoft, in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(audience)
+                    Text(AppLocalization.string(audience))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text(address)
@@ -738,68 +559,22 @@ struct ProfileView: View {
         )
     }
 
+    private var brandFooter: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            Text(Brand.name)
+                .font(.caption.weight(.semibold))
+            Text(Brand.slogan)
+                .font(.caption2)
+        }
+        .foregroundStyle(Theme.Color.textSecondary)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 
-}
-
-private enum AvatarAlert: String, Identifiable {
-    case photoLoadFailed
-    case saveFailed
-    case cameraUnavailable
-    case cameraPermissionDenied
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .photoLoadFailed: "无法读取照片"
-        case .saveFailed: "无法保存头像"
-        case .cameraUnavailable: "相机不可用"
-        case .cameraPermissionDenied: "需要相机权限"
-        }
-    }
-
-    var message: String {
-        switch self {
-        case .photoLoadFailed:
-            "请选择另一张照片后重试。"
-        case .saveFailed:
-            "头像未能保存到本机，请稍后重试。"
-        case .cameraUnavailable:
-            "当前设备无法使用相机，你仍然可以从照片图库选择头像。"
-        case .cameraPermissionDenied:
-            "请在系统设置中允许 RepDay 使用相机，然后再次选择“拍照”。"
-        }
-    }
-}
-
-private struct AvatarFramePreferenceKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        let next = nextValue()
-        if next != .zero {
-            value = next
-        }
-    }
-}
-
-private struct ProfileAvatarPressStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(
-                configuration.isPressed && !accessibilityReduceMotion ? 0.96 : 1
-            )
-            .opacity(configuration.isPressed ? 0.9 : 1)
-            .animation(
-                accessibilityReduceMotion ? nil : .easeOut(duration: 0.12),
-                value: configuration.isPressed
-            )
-    }
 }
 
 private struct PrivacyPolicyView: View {
@@ -817,6 +592,10 @@ private struct PrivacyPolicyView: View {
                 policySection(
                     title: "Workout data",
                     body: "Your plans, exercises, workout logs, and history are stored locally on your device. A small amount of workout information is shared locally with the RepDay widget through Apple’s App Groups system. It is not sent to us or any third party."
+                )
+                policySection(
+                    title: "Profile data",
+                    body: "Your optional nickname, bio, and profile photo are stored locally on your device. They are not uploaded or shared with us or any third party."
                 )
                 policySection(
                     title: "Calendar access (optional)",
@@ -852,10 +631,10 @@ private struct PrivacyPolicyView: View {
 
     private func policySection(title: String, body: String) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(title)
+            Text(AppLocalization.string(title))
                 .font(.headline)
                 .foregroundStyle(Theme.Color.textPrimary)
-            Text(body)
+            Text(AppLocalization.string(body))
                 .font(.body)
                 .foregroundStyle(Theme.Color.textSecondary)
         }

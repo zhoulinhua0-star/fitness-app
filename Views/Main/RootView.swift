@@ -9,6 +9,7 @@
 
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -49,6 +50,10 @@ struct RootView: View {
                 .zIndex(2)
             }
         }
+        .environment(
+            \.locale,
+            settings.languagePreference.resolvedLocale()
+        )
         .dynamicTypeSize(settings.textSizePreference.adjusted(from: systemDynamicTypeSize))
         .animation(.spring(response: 0.35, dampingFraction: 0.86), value: restTimers.notice)
         .task(id: reminderRefreshKey) {
@@ -56,6 +61,11 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
+            restTimers.rescheduleSystemNotifications()
+        }
+        .onChange(of: settings.languagePreference) { _, preference in
+            WidgetDataStore.languageIdentifier = preference.resolvedIdentifier()
+            WidgetCenter.shared.reloadAllTimelines()
             restTimers.rescheduleSystemNotifications()
         }
     }
@@ -96,6 +106,7 @@ struct RootView: View {
             String(settings.reminderMinute),
             String(settings.remindersOnPlannedDaysOnly),
             String(settings.skipReminderWhenCompleted),
+            settings.languagePreference.rawValue,
             String(completedToday),
             String(isWorkoutActive),
             String(scenePhase == .active)

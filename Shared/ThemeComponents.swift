@@ -43,12 +43,18 @@ struct SectionPill: View {
     var count: Int? = nil
     var systemImage: String = "circle"
     var tint: Color = Theme.Color.tintPeach
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: Theme.Spacing.s) {
             Image(systemName: systemImage)
                 .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold)
-            Text(title.uppercased())
+            Text(
+                AppLocalization.string(
+                    title,
+                    languageIdentifier: locale.identifier
+                ).uppercased()
+            )
                 .appScaledFont(size: 13, relativeTo: .caption, weight: .semibold, width: .expanded)
             if let count {
                 Text("(\(count))")
@@ -151,10 +157,16 @@ struct ThemedStepper: View {
     let title: String
     @Binding var value: Int
     let range: ClosedRange<Int>
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            Text(title)
+            Text(
+                AppLocalization.string(
+                    title,
+                    languageIdentifier: locale.identifier
+                )
+            )
                 .appScaledFont(size: 12, relativeTo: .caption, weight: .semibold)
                 .foregroundStyle(Theme.Color.textSecondary)
 

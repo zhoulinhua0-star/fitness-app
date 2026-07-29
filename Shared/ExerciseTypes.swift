@@ -8,8 +8,8 @@ enum ExerciseActivityType: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .strength: "力量"
-        case .cardio: "有氧"
+        case .strength: AppLocalization.string("力量")
+        case .cardio: AppLocalization.string("有氧")
         }
     }
 
@@ -27,8 +27,8 @@ enum ExerciseTrackingMode: String, Codable {
 
     var title: String {
         switch self {
-        case .setsAndReps: "组数与次数"
-        case .duration: "时长"
+        case .setsAndReps: AppLocalization.string("组数与次数")
+        case .duration: AppLocalization.string("时长")
         }
     }
 }
@@ -66,13 +66,13 @@ enum ExerciseBodyPart: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .chest: "胸部"
-        case .back: "背部"
-        case .legs: "腿部"
-        case .shoulders: "肩部"
-        case .arms: "手臂"
-        case .core: "核心"
-        case .fullBody: "全身"
+        case .chest: AppLocalization.string("胸部")
+        case .back: AppLocalization.string("背部")
+        case .legs: AppLocalization.string("腿部")
+        case .shoulders: AppLocalization.string("肩部")
+        case .arms: AppLocalization.string("手臂")
+        case .core: AppLocalization.string("核心")
+        case .fullBody: AppLocalization.string("全身")
         }
     }
 
@@ -133,6 +133,14 @@ struct ExerciseDefinition: Identifiable, Hashable {
             return "\(activityType.title) · \(trackingMode.title)"
         }
     }
+
+    var localizedName: String {
+        AppLocalization.string(name)
+    }
+
+    func localizedName(languageIdentifier: String) -> String {
+        AppLocalization.string(name, languageIdentifier: languageIdentifier)
+    }
 }
 
 enum ExerciseFormatting {
@@ -151,16 +159,16 @@ enum ExerciseFormatting {
         let remainingSeconds = safeSeconds % 60
 
         if hours > 0 {
-            var parts = ["\(hours) 小时"]
-            if minutes > 0 { parts.append("\(minutes) 分钟") }
-            if remainingSeconds > 0 { parts.append("\(remainingSeconds) 秒") }
+            var parts = [AppLocalization.format("%lld 小时", hours)]
+            if minutes > 0 { parts.append(AppLocalization.format("%lld 分钟", minutes)) }
+            if remainingSeconds > 0 { parts.append(AppLocalization.format("%lld 秒", remainingSeconds)) }
             return parts.joined(separator: " ")
         }
         if remainingSeconds > 0 || minutes == 0 {
             return minutes > 0
-                ? "\(minutes) 分钟 \(remainingSeconds) 秒"
-                : "\(remainingSeconds) 秒"
+                ? AppLocalization.format("%lld 分钟 %lld 秒", minutes, remainingSeconds)
+                : AppLocalization.format("%lld 秒", remainingSeconds)
         }
-        return "\(minutes) 分钟"
+        return AppLocalization.format("%lld 分钟", minutes)
     }
 }

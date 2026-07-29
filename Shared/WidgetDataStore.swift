@@ -20,6 +20,7 @@ enum WidgetDataStore {
         static let nextWorkoutPreview = "widgetNextWorkoutPreview"
         static let weekOverviewJSON = "widgetWeekOverviewJSON"
         static let lastUpdated = "widgetLastUpdated"
+        static let languageIdentifier = "widgetLanguageIdentifier"
     }
     
     private static var sharedDefaults: UserDefaults? {
@@ -132,5 +133,15 @@ enum WidgetDataStore {
         let plannedUnits = totalSets + totalCardio
         guard plannedUnits > 0 else { return 0 }
         return Double(completedSets + completedCardio) / Double(plannedUnits)
+    }
+
+    static var languageIdentifier: String {
+        get {
+            sharedDefaults?.string(forKey: Keys.languageIdentifier)
+                ?? AppLanguagePreference.system.resolvedIdentifier()
+        }
+        set {
+            sharedDefaults?.set(newValue, forKey: Keys.languageIdentifier)
+        }
     }
 }

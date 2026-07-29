@@ -76,7 +76,9 @@ struct TodayWorkoutView: View {
     }
 
     var headerDayName: String {
-        isImprovActive ? "即兴训练" : (todayPlan?.dayName ?? "")
+        isImprovActive
+            ? AppLocalization.string("即兴训练")
+            : todayPlan.map { WeekdayDisplay.fullLabel(for: $0.dayName) } ?? ""
     }
 
     var completedExerciseCount: Int {
@@ -561,9 +563,16 @@ extension TodayWorkoutView {
         cardioCount: Int,
         cardioMinutes: Int
     ) -> String {
-        var parts = ["即兴训练", "\(exerciseCount) 个动作"]
-        if setCount > 0 { parts.append("\(setCount) 组") }
-        if cardioCount > 0 { parts.append("\(cardioMinutes) 分钟有氧") }
+        var parts = [
+            AppLocalization.string("即兴训练"),
+            AppLocalization.format("%lld 个动作", exerciseCount)
+        ]
+        if setCount > 0 {
+            parts.append(AppLocalization.format("%lld 组", setCount))
+        }
+        if cardioCount > 0 {
+            parts.append(AppLocalization.format("%lld 分钟", cardioMinutes))
+        }
         return parts.joined(separator: " · ")
     }
 

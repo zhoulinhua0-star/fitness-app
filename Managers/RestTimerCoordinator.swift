@@ -187,14 +187,14 @@ final class RestTimerCoordinator {
             case .permissionDenied:
                 presentNotice(
                     kind: .warning,
-                    title: "系统通知未开启",
-                    message: "留在 App 内仍会提醒；锁屏或退出 App 时请先开启通知权限。"
+                    title: AppLocalization.string("系统通知未开启"),
+                    message: AppLocalization.string("留在 App 内仍会提醒；锁屏或退出 App 时请先开启通知权限。")
                 )
             case .failed:
                 presentNotice(
                     kind: .warning,
-                    title: "系统提醒创建失败",
-                    message: "App 内计时仍会继续，请稍后在通知设置中重试。"
+                    title: AppLocalization.string("系统提醒创建失败"),
+                    message: AppLocalization.string("App 内计时仍会继续，请稍后在通知设置中重试。")
                 )
             case .scheduled, .disabled, .noPlannedDays:
                 break
@@ -229,7 +229,7 @@ final class RestTimerCoordinator {
             if endDate > now {
                 result[entry.key] = ActiveRestTimer(
                     id: entry.key,
-                    exerciseName: storedNames[entry.key] ?? "当前动作",
+                    exerciseName: storedNames[entry.key] ?? AppLocalization.string("当前动作"),
                     endDate: endDate
                 )
             } else if Calendar.current.isDate(endDate, inSameDayAs: now),
@@ -336,8 +336,11 @@ final class RestTimerCoordinator {
         }
         presentNotice(
             kind: .completed,
-            title: "休息结束",
-            message: "\(exerciseName) · 可以开始下一组了"
+            title: AppLocalization.string("休息结束"),
+            message: AppLocalization.format(
+                "%@ · 可以开始下一组了",
+                ExerciseLibrary.displayName(for: exerciseName)
+            )
         )
     }
 

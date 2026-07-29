@@ -156,7 +156,8 @@ struct NotificationSettingsView: View {
             String(settings.reminderHour),
             String(settings.reminderMinute),
             String(settings.remindersOnPlannedDaysOnly),
-            String(settings.skipReminderWhenCompleted)
+            String(settings.skipReminderWhenCompleted),
+            settings.languagePreference.rawValue
         ].joined(separator: "#")
     }
 
@@ -196,9 +197,9 @@ struct NotificationSettingsView: View {
                 playsSound: settings.restSoundEnabled
             )
             notificationStatusMessage = switch result {
-            case .scheduled: "测试提醒将在 3 秒后显示"
-            case .permissionDenied: "系统通知权限未开启"
-            case .failed: "测试提醒未能创建，请稍后重试"
+            case .scheduled: AppLocalization.string("测试提醒将在 3 秒后显示")
+            case .permissionDenied: AppLocalization.string("系统通知权限未开启")
+            case .failed: AppLocalization.string("测试提醒未能创建，请稍后重试")
             case .disabled, .noPlannedDays: nil
             }
             await refreshAuthorizationState()
@@ -232,7 +233,7 @@ struct NotificationSettingsView: View {
             switch action {
             case .enableRestReminders:
                 RestTimerCoordinator.shared.rescheduleSystemNotifications()
-                notificationStatusMessage = "系统通知权限已开启"
+                notificationStatusMessage = AppLocalization.string("系统通知权限已开启")
             case .enableDailyReminders:
                 await refreshDailyReminders()
             case .sendTest:
@@ -246,24 +247,26 @@ struct NotificationSettingsView: View {
     private func message(for result: NotificationScheduleResult) -> String? {
         switch result {
         case .scheduled:
-            return "训练提醒已自动更新"
+            return AppLocalization.string("训练提醒已自动更新")
         case .disabled:
-            return "训练提醒已关闭"
+            return AppLocalization.string("训练提醒已关闭")
         case .noPlannedDays:
-            return settings.remindersOnPlannedDaysOnly ? "当前没有可提醒的训练日" : nil
+            return settings.remindersOnPlannedDaysOnly
+                ? AppLocalization.string("当前没有可提醒的训练日")
+                : nil
         case .permissionDenied:
-            return "系统通知权限未开启"
+            return AppLocalization.string("系统通知权限未开启")
         case .failed:
-            return "提醒更新失败，请稍后重试"
+            return AppLocalization.string("提醒更新失败，请稍后重试")
         }
     }
 
     private var permissionLabel: String {
         switch authorizationState {
-        case .allowed: "已允许"
-        case .denied: "未允许"
-        case .notDetermined: "尚未请求"
-        case .unknown: "检查中"
+        case .allowed: AppLocalization.string("已允许")
+        case .denied: AppLocalization.string("未允许")
+        case .notDetermined: AppLocalization.string("尚未请求")
+        case .unknown: AppLocalization.string("检查中")
         }
     }
 
@@ -276,8 +279,11 @@ struct NotificationSettingsView: View {
     }
 
     private var statusSymbol: String {
-        notificationStatusMessage?.contains("失败") == true ||
-            notificationStatusMessage?.contains("未开启") == true
+        [
+            AppLocalization.string("系统通知权限未开启"),
+            AppLocalization.string("测试提醒未能创建，请稍后重试"),
+            AppLocalization.string("提醒更新失败，请稍后重试")
+        ].contains(notificationStatusMessage)
             ? "exclamationmark.circle"
             : "checkmark.circle"
     }

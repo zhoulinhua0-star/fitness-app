@@ -139,7 +139,7 @@ struct ExpandableExerciseRow: View {
 
     private var exerciseTextContent: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(exercise.name)
+            Text(ExerciseLibrary.displayName(for: exercise.name))
                 .appScaledFont(size: 17, relativeTo: .headline, weight: .semibold)
                 .strikethrough(isFullyCompleted, color: Theme.Color.textSecondary)
                 .foregroundStyle(isFullyCompleted ? Theme.Color.textSecondary : Theme.Color.textPrimary)
@@ -360,15 +360,27 @@ struct ExpandableExerciseRow: View {
 
     private func cardioHeaderDescription(elapsed: Int) -> String {
         if exercise.isFullyCompletedToday {
-            return "已完成 · \(ExerciseFormatting.shortDuration(elapsed))"
+            return AppLocalization.format(
+                "已完成 · %@",
+                ExerciseFormatting.shortDuration(elapsed)
+            )
         }
         if exercise.cardioStartedAt != nil {
-            return "\(ExerciseFormatting.duration(elapsed)) / \(ExerciseFormatting.duration(exercise.targetDurationSeconds)) · 计时中"
+            return [
+                "\(ExerciseFormatting.duration(elapsed)) / \(ExerciseFormatting.duration(exercise.targetDurationSeconds))",
+                AppLocalization.string("计时中")
+            ].joined(separator: " · ")
         }
         if elapsed > 0 {
-            return "\(ExerciseFormatting.duration(elapsed)) / \(ExerciseFormatting.duration(exercise.targetDurationSeconds)) · 已暂停"
+            return [
+                "\(ExerciseFormatting.duration(elapsed)) / \(ExerciseFormatting.duration(exercise.targetDurationSeconds))",
+                AppLocalization.string("已暂停")
+            ].joined(separator: " · ")
         }
-        return "目标 \(ExerciseFormatting.shortDuration(exercise.targetDurationSeconds))"
+        return AppLocalization.format(
+            "目标 %@",
+            ExerciseFormatting.shortDuration(exercise.targetDurationSeconds)
+        )
     }
 
     private func startCardio() {

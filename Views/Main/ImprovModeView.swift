@@ -91,7 +91,7 @@ private struct MuscleGroupChip: View {
         VStack(spacing: Theme.Spacing.s) {
             Text(group.emoji)
                 .font(.system(size: 30))
-            Text(group.name)
+            Text(AppLocalization.string(group.name))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(isSelected ? Theme.Color.accent : Theme.Color.textPrimary)
         }
@@ -129,7 +129,7 @@ private struct ExerciseSuggestionRow: View {
                 ExerciseIconTile(definition: definition, tint: groupTint, size: 44)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(definition.name)
+                    Text(definition.localizedName)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                     Text(definition.subtitle)
@@ -594,7 +594,7 @@ struct ImprovModeView: View {
                     size: 44
                 )
 
-                Text(entry.name)
+                Text(ExerciseLibrary.displayName(for: entry.name))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
 

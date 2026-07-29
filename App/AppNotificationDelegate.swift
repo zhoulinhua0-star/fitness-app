@@ -18,7 +18,8 @@ final class AppNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
 
         if content.categoryIdentifier == NotificationManager.restTimerCategoryIdentifier,
            let timerID = content.userInfo["timerID"] as? String {
-            let exerciseName = content.userInfo["exerciseName"] as? String ?? "当前动作"
+            let exerciseName = content.userInfo["exerciseName"] as? String
+                ?? AppLocalization.string("当前动作")
             await MainActor.run {
                 RestTimerCoordinator.shared.notificationDelivered(
                     timerID: timerID,

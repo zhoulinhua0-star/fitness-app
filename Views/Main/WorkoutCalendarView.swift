@@ -12,6 +12,7 @@ import SwiftData
 
 struct WorkoutCalendarView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @Query private var sessions: [WorkoutSession]
 
     @State private var displayedMonth: Date = .now
@@ -20,6 +21,7 @@ struct WorkoutCalendarView: View {
     private var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)
         c.firstWeekday = 2
+        c.locale = locale
         return c
     }
 
@@ -40,10 +42,9 @@ struct WorkoutCalendarView: View {
     }
 
     private var monthTitle: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "yyyy年M月"
-        return f.string(from: displayedMonth)
+        displayedMonth.formatted(
+            .dateTime.month(.wide).year().locale(locale)
+        )
     }
 
     private var monthCompletedCount: Int {
@@ -93,7 +94,7 @@ struct WorkoutCalendarView: View {
     private var weekdayHeader: some View {
         HStack(spacing: 0) {
             ForEach(weekdaySymbols, id: \.self) { s in
-                Text(s)
+                Text(AppLocalization.string(s))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .frame(maxWidth: .infinity)

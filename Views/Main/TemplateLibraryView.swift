@@ -132,7 +132,7 @@ struct TemplateCard: View {
     let template: WorkoutTemplate
 
     private var previewNames: [String] {
-        template.sortedExercises.prefix(3).map(\.name)
+        template.sortedExercises.prefix(3).map { ExerciseLibrary.displayName(for: $0.name) }
     }
 
     var body: some View {
@@ -200,7 +200,7 @@ struct TemplateNameSheet: View {
                 .themedField()
 
             Button(action: commit) {
-                Text(actionTitle)
+                Text(AppLocalization.string(actionTitle))
             }
             .buttonStyle(.primaryCTA)
             .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -318,11 +318,11 @@ struct TemplateEditorView: View {
                 Text(value)
                     .font(.displayMetricSmall)
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text(unit)
+                Text(AppLocalization.string(unit))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
-            Text(label)
+            Text(AppLocalization.string(label))
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }

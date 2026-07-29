@@ -10,17 +10,17 @@ enum AppTextSizePreference: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .compact: "紧凑"
-        case .standard: "标准"
-        case .large: "大字"
+        case .compact: AppLocalization.string("紧凑")
+        case .standard: AppLocalization.string("标准")
+        case .large: AppLocalization.string("大字")
         }
     }
 
     var detail: String {
         switch self {
-        case .compact: "更高信息密度"
-        case .standard: "舒适清晰，推荐使用"
-        case .large: "跟随系统文字大小"
+        case .compact: AppLocalization.string("更高信息密度")
+        case .standard: AppLocalization.string("舒适清晰，推荐使用")
+        case .large: AppLocalization.string("跟随系统文字大小")
         }
     }
 
@@ -58,6 +58,7 @@ final class AppSettings {
         static let remindersOnPlannedDaysOnly = "remindersOnPlannedDaysOnly"
         static let skipReminderWhenCompleted = "skipReminderWhenCompleted"
         static let textSizePreference = "textSizePreference"
+        static let languagePreference = AppLocalization.preferenceDefaultsKey
     }
     
     private let defaults = UserDefaults.standard
@@ -101,6 +102,13 @@ final class AppSettings {
     var textSizePreference: AppTextSizePreference {
         didSet { defaults.set(textSizePreference.rawValue, forKey: Keys.textSizePreference) }
     }
+
+    var languagePreference: AppLanguagePreference {
+        didSet {
+            defaults.set(languagePreference.rawValue, forKey: Keys.languagePreference)
+            WidgetDataStore.languageIdentifier = languagePreference.resolvedIdentifier()
+        }
+    }
     
     private init() {
         let storedRest = defaults.object(forKey: Keys.defaultRestSeconds) as? Int
@@ -116,5 +124,9 @@ final class AppSettings {
         textSizePreference = AppTextSizePreference(
             rawValue: defaults.string(forKey: Keys.textSizePreference) ?? ""
         ) ?? .standard
+        languagePreference = AppLanguagePreference(
+            rawValue: defaults.string(forKey: Keys.languagePreference) ?? ""
+        ) ?? .system
+        WidgetDataStore.languageIdentifier = languagePreference.resolvedIdentifier()
     }
 }

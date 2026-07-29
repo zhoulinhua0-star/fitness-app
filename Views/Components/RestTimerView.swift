@@ -5,6 +5,7 @@ struct RestTimerView: View {
     let nextSetNumber: Int
     let onSkip: () -> Void
     let onEndDateChanged: (Date) -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -34,8 +35,20 @@ struct RestTimerView: View {
             }
 
             HStack(spacing: Theme.Spacing.s) {
-                adjustmentButton(title: "−15 秒", delta: -15)
-                adjustmentButton(title: "+15 秒", delta: 15)
+                adjustmentButton(
+                    title: AppLocalization.string(
+                        "−15 秒",
+                        languageIdentifier: locale.identifier
+                    ),
+                    delta: -15
+                )
+                adjustmentButton(
+                    title: AppLocalization.string(
+                        "+15 秒",
+                        languageIdentifier: locale.identifier
+                    ),
+                    delta: 15
+                )
             }
         }
         .padding(.horizontal, Theme.Spacing.m)

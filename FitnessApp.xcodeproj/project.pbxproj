@@ -185,10 +185,11 @@
 				};
 			};
 			buildConfigurationList = 8ABC123F2FC7430600A229AD /* Build configuration list for PBXProject "FitnessApp" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 8ABC123B2FC7430600A229AD;
@@ -381,7 +382,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RepDay;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "RepDay uses calendar access to create and update your workout schedule in Apple Calendar.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "RepDay 使用日历权限，在 Apple 日历中创建和更新你的训练计划。";
 				INFOPLIST_KEY_NSCameraUsageDescription = "RepDay 仅在你选择拍摄头像时使用相机，照片只保存在你的设备上。";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "RepDay uses notifications for optional workout reminders and rest timers.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -396,7 +397,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026New";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -420,7 +421,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = RepDay;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "RepDay uses calendar access to create and update your workout schedule in Apple Calendar.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "RepDay 使用日历权限，在 Apple 日历中创建和更新你的训练计划。";
 				INFOPLIST_KEY_NSCameraUsageDescription = "RepDay 仅在你选择拍摄头像时使用相机，照片只保存在你的设备上。";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "RepDay uses notifications for optional workout reminders and rest timers.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -435,7 +436,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.zhoulinhua0-star.FitnessApp2026New";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;

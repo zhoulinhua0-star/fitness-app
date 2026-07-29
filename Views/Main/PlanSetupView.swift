@@ -30,20 +30,20 @@ private enum CalendarSyncIssue: Hashable, Identifiable {
 
     var title: String {
         switch self {
-        case .permissionDenied: "日历权限未开启"
-        case .restricted: "无法访问日历"
-        case .failed: "日历同步失败"
+        case .permissionDenied: AppLocalization.string("日历权限未开启")
+        case .restricted: AppLocalization.string("无法访问日历")
+        case .failed: AppLocalization.string("日历同步失败")
         }
     }
 
     var message: String {
         switch self {
         case .permissionDenied:
-            "要同步训练计划，请在系统设置中允许 RepDay 完全访问日历。"
+            AppLocalization.string("要同步训练计划，请在系统设置中允许 RepDay 完全访问日历。")
         case .restricted:
-            "这台设备限制了日历访问，可能需要检查家长控制或设备管理设置。"
+            AppLocalization.string("这台设备限制了日历访问，可能需要检查家长控制或设备管理设置。")
         case .failed:
-            "训练计划暂时无法写入日历，请稍后重试。"
+            AppLocalization.string("训练计划暂时无法写入日历，请稍后重试。")
         }
     }
 }
@@ -51,6 +51,7 @@ private enum CalendarSyncIssue: Hashable, Identifiable {
 // A Tiimo-style pill segmented control used to switch between modes.
 private struct PlanModeToggle: View {
     @Binding var mode: PlanMode
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: 4) {
@@ -62,7 +63,12 @@ private struct PlanModeToggle: View {
                     HStack(spacing: 6) {
                         Image(systemName: m.icon)
                             .appScaledFont(size: 12, relativeTo: .caption, weight: .semibold)
-                        Text(m.rawValue)
+                        Text(
+                            AppLocalization.string(
+                                m.rawValue,
+                                languageIdentifier: locale.identifier
+                            )
+                        )
                             .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
                     }
                     .foregroundStyle(mode == m ? Theme.Color.textPrimary : Theme.Color.textSecondary)
@@ -263,7 +269,11 @@ struct PlanSetupView: View {
             Text("健身课表")
                 .font(.displayLarge)
                 .foregroundStyle(Theme.Color.textPrimary)
-            Text(planMode == .plan ? "管理每周训练计划" : "随心所欲，今天练啥？")
+            Text(
+                AppLocalization.string(
+                    planMode == .plan ? "管理每周训练计划" : "随心所欲，今天练啥？"
+                )
+            )
                 .appScaledFont(size: 15, relativeTo: .subheadline, weight: .medium)
                 .foregroundStyle(Theme.Color.textSecondary)
                 .animation(.easeInOut(duration: 0.25), value: planMode)
@@ -417,7 +427,7 @@ struct PlanDayCard: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     ForEach(workoutDay.exercises.sorted(by: { $0.order < $1.order }).prefix(2)) { exercise in
                         HStack {
-                            Text("• \(exercise.name)")
+                            Text("• \(ExerciseLibrary.displayName(for: exercise.name))")
                                 .appScaledFont(size: 12, relativeTo: .caption, weight: .medium)
                                 .foregroundStyle(Theme.Color.textPrimary)
                                 .lineLimit(1)
@@ -542,7 +552,12 @@ struct DayDetailEditorView: View {
         }
         .background(Theme.Color.background.ignoresSafeArea())
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle("\(workoutDay.dayName) 安排")
+        .navigationTitle(
+            AppLocalization.format(
+                "%@ 安排",
+                WeekdayDisplay.fullLabel(for: workoutDay.dayName)
+            )
+        )
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingExercisePicker) {
             ExercisePickerSheet(
@@ -573,10 +588,20 @@ struct DayDetailEditorView: View {
             EmojiTile(emoji: workoutDay.isRestDay ? "🛋️" : "💪",
                       tint: workoutDay.isRestDay ? Theme.Color.tintMint : Theme.Color.accentSoft)
             VStack(alignment: .leading, spacing: 2) {
-                Text(workoutDay.isRestDay ? "休息日" : "训练日")
+                Text(
+                    AppLocalization.string(
+                        workoutDay.isRestDay ? "休息日" : "训练日"
+                    )
+                )
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text(workoutDay.isRestDay ? "肌肉正在修复，好好放松" : "安排今天的训练动作")
+                Text(
+                    AppLocalization.string(
+                        workoutDay.isRestDay
+                            ? "肌肉正在修复，好好放松"
+                            : "安排今天的训练动作"
+                    )
+                )
                     .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
             }
@@ -615,11 +640,11 @@ struct DayDetailEditorView: View {
                 Text(value)
                     .font(.displayMetricSmall)
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text(unit)
+                Text(AppLocalization.string(unit))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
             }
-            Text(label)
+            Text(AppLocalization.string(label))
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.Color.textSecondary)
         }

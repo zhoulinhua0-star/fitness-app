@@ -95,10 +95,13 @@ enum NotificationManager {
             guard let fireDate = calendar.date(from: triggerComponents), fireDate > now else { continue }
 
             let content = UNMutableNotificationContent()
-            content.title = "训练提醒"
+            content.title = AppLocalization.string("训练提醒")
             content.body = hasPlan
-                ? "\(dayName)的训练还没完成，准备好就开始吧。"
-                : "今天想动一动吗？打开 RepDay 开始训练。"
+                ? AppLocalization.format(
+                    "%@的训练还没完成，准备好就开始吧。",
+                    WeekdayDisplay.fullLabel(for: dayName)
+                )
+                : AppLocalization.string("今天想动一动吗？打开 RepDay 开始训练。")
             content.sound = .default
             content.threadIdentifier = "dailyWorkoutReminders"
 
@@ -144,8 +147,11 @@ enum NotificationManager {
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
 
         let content = UNMutableNotificationContent()
-        content.title = "休息结束"
-        content.body = "\(exerciseName) · 可以开始下一组了"
+        content.title = AppLocalization.string("休息结束")
+        content.body = AppLocalization.format(
+            "%@ · 可以开始下一组了",
+            ExerciseLibrary.displayName(for: exerciseName)
+        )
         content.sound = playsSound ? .default : nil
         content.interruptionLevel = .timeSensitive
         content.categoryIdentifier = restTimerCategoryIdentifier
@@ -177,8 +183,8 @@ enum NotificationManager {
         guard await requestAuthorization() else { return .permissionDenied }
 
         let content = UNMutableNotificationContent()
-        content.title = "测试提醒"
-        content.body = "通知工作正常，你可以放心开始训练。"
+        content.title = AppLocalization.string("测试提醒")
+        content.body = AppLocalization.string("通知工作正常，你可以放心开始训练。")
         content.sound = playsSound ? .default : nil
         content.interruptionLevel = .timeSensitive
         content.categoryIdentifier = testCategoryIdentifier
