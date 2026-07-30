@@ -182,6 +182,7 @@ struct PlanSetupView: View {
                         .transition(.opacity)
                 }
             }
+            .ignoresSafeArea(planMode == .plan ? .keyboard : [], edges: .bottom)
             .toolbar(.hidden, for: .navigationBar)
             .onAppear {
                 revertEnglishDayNamesIfNeeded()

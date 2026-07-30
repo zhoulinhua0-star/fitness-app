@@ -62,6 +62,7 @@ struct ExercisePickerSheet: View {
                 }
             }
         }
+        .appKeyboardToolbar()
         .presentationBackground(Theme.Color.background)
     }
 

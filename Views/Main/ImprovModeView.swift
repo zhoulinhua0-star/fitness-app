@@ -558,19 +558,7 @@ struct ImprovModeView: View {
                     .id("improvCustomNameField")
                     .submitLabel(.done)
                     .onSubmit(addCustomExercise)
-                    .padding(.horizontal, Theme.Spacing.m)
-                    .padding(.vertical, 13)
-                    .background(
-                        Theme.Color.surfaceMuted,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
-                            .stroke(
-                                customFieldFocused ? Theme.Color.accent : Theme.Color.hairline,
-                                lineWidth: customFieldFocused ? 1.5 : 1
-                            )
-                    )
+                    .themedField(isFocused: customFieldFocused)
 
                     Button(action: addCustomExercise) {
                         Image(systemName: "plus")
