@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🏋️‍♂️ RepDay - Gym Workout Planner
+# 📱 RepDay - Gym Workout Planner
 
-**Plan the work. Work the plan.**
+**Plan the work. Work the plan.  ｜  谋定后动，行必有章。**
 
 [![Download on the App Store](https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000)](https://apps.apple.com/us/app/repday-gym-workout-planner/id6791500746)
 
@@ -16,7 +16,7 @@
 ![Region](https://img.shields.io/badge/Store-US_Only-red)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-*Plan the work. Work the plan. ｜ 制定计划，完成计划。*
+*Plan the work. Work the plan. ｜ 谋定后动，行必有章。*
 
 </div>
 
