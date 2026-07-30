@@ -2,7 +2,7 @@
 
 # 🏋️‍♂️ RepDay - Gym Workout Planner
 
-**A clearer way to train. ｜ 更清晰地规划每一次训练。**
+**Plan the work. Work the plan.**
 
 [![Download on the App Store](https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1276560000)](https://apps.apple.com/us/app/repday-gym-workout-planner/id6791500746)
 
