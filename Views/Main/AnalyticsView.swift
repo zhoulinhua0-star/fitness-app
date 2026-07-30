@@ -422,7 +422,11 @@ extension AnalyticsView {
                 Text(historySummary(session))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Theme.Color.accent)
-                Text(session.isComplete ? "已完成" : "部分完成")
+                Text(
+                    AppLocalization.string(
+                        session.isComplete ? "已完成" : "部分完成"
+                    )
+                )
                     .font(.caption)
                     .foregroundStyle(session.isComplete ? Theme.Color.success : Color.orange)
             }

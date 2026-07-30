@@ -105,7 +105,9 @@ enum WeekPlanSummary {
     
     private static func preview(for day: DaySnapshot) -> String {
         let names = day.exerciseNames.prefix(2).joined(separator: " · ")
-        if names.isEmpty { return "\(day.totalSets) 组" }
+        if names.isEmpty {
+            return AppLocalization.format("%lld 组", day.totalSets)
+        }
         if day.exerciseNames.count > 2 {
             return "\(names)…"
         }

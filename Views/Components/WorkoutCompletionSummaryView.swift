@@ -15,6 +15,7 @@ struct WorkoutCompletionSummaryView: View {
     let totalExercises: Int
     let onDismiss: () -> Void
 
+    @Environment(\.locale) private var locale
     @State private var didDismiss = false
 
     var body: some View {
@@ -37,17 +38,39 @@ struct WorkoutCompletionSummaryView: View {
 
                 VStack(spacing: Theme.Spacing.s) {
                     if totalSets > 0 {
-                        summaryRow(label: "完成组数", value: "\(completedSets) / \(totalSets) 组")
+                        summaryRow(
+                            label: "完成组数",
+                            value: AppLocalization.format(
+                                "%lld / %lld 组",
+                                languageIdentifier: locale.identifier,
+                                completedSets,
+                                totalSets
+                            )
+                        )
                         Divider().background(Theme.Color.hairline)
                     }
                     if totalCardio > 0 {
                         summaryRow(
                             label: "完成有氧",
-                            value: "\(completedCardio) / \(totalCardio) 项 · \(cardioDurationSeconds / 60) 分钟"
+                            value: AppLocalization.format(
+                                "%lld / %lld 项 · %lld 分钟",
+                                languageIdentifier: locale.identifier,
+                                completedCardio,
+                                totalCardio,
+                                cardioDurationSeconds / 60
+                            )
                         )
                         Divider().background(Theme.Color.hairline)
                     }
-                    summaryRow(label: "完成动作", value: "\(completedExercises) / \(totalExercises) 个")
+                    summaryRow(
+                        label: "完成动作",
+                        value: AppLocalization.format(
+                            "%lld / %lld 个",
+                            languageIdentifier: locale.identifier,
+                            completedExercises,
+                            totalExercises
+                        )
+                    )
                 }
                 .padding(Theme.Spacing.l)
                 .background(Theme.Color.surfaceMuted)
@@ -80,7 +103,12 @@ struct WorkoutCompletionSummaryView: View {
 
     private func summaryRow(label: String, value: String) -> some View {
         HStack {
-            Text(AppLocalization.string(label))
+            Text(
+                AppLocalization.string(
+                    label,
+                    languageIdentifier: locale.identifier
+                )
+            )
                 .foregroundStyle(Theme.Color.textSecondary)
             Spacer()
             Text(value)

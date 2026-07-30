@@ -344,6 +344,7 @@ struct PlanDayCard: View {
     let workoutDay: WorkoutDay
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.locale) private var locale
 
     private var isToday: Bool {
         workoutDay.dayName == WeekPlanSummary.todayDayName()
@@ -366,9 +367,18 @@ struct PlanDayCard: View {
     }
 
     private var intensityLabel: String {
-        if totalSets < 12 { return "适中" }
-        if totalSets <= 20 { return "高燃" }
-        return "极限"
+        let key: String
+        if totalSets < 12 {
+            key = "适中"
+        } else if totalSets <= 20 {
+            key = "高燃"
+        } else {
+            key = "极限"
+        }
+        return AppLocalization.string(
+            key,
+            languageIdentifier: locale.identifier
+        )
     }
 
     private var intensityColor: Color {
@@ -432,9 +442,15 @@ struct PlanDayCard: View {
                                 .foregroundStyle(Theme.Color.textPrimary)
                                 .lineLimit(1)
                             Spacer()
-                            Text(exercise.isCardio
-                                ? ExerciseFormatting.shortDuration(exercise.targetDurationSeconds)
-                                : "\(exercise.sets)组")
+                            Text(
+                                exercise.isCardio
+                                    ? ExerciseFormatting.shortDuration(exercise.targetDurationSeconds)
+                                    : AppLocalization.format(
+                                        "%lld组",
+                                        languageIdentifier: locale.identifier,
+                                        exercise.sets
+                                    )
+                            )
                                 .appScaledFont(size: 11, relativeTo: .caption2)
                                 .foregroundStyle(Theme.Color.textSecondary)
                         }
@@ -457,9 +473,20 @@ struct PlanDayCard: View {
                         .padding(.vertical, 4)
                         .background(intensityColor, in: Capsule())
                     Spacer()
-                    Text(cardioMinutes > 0
-                        ? "\(totalSets) 组 · \(cardioMinutes) 分"
-                        : "\(totalSets) 组")
+                    Text(
+                        cardioMinutes > 0
+                            ? AppLocalization.format(
+                                "%lld 组 · %lld 分",
+                                languageIdentifier: locale.identifier,
+                                totalSets,
+                                cardioMinutes
+                            )
+                            : AppLocalization.format(
+                                "%lld 组",
+                                languageIdentifier: locale.identifier,
+                                totalSets
+                            )
+                    )
                         .appScaledFont(size: 11, relativeTo: .caption2, weight: .semibold)
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
@@ -492,6 +519,8 @@ struct PlanDayCard: View {
 
 struct DayDetailEditorView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+    @Environment(\.locale) private var locale
     @Bindable var workoutDay: WorkoutDay
     @Query private var templates: [WorkoutTemplate]
 
@@ -534,9 +563,12 @@ struct DayDetailEditorView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: Theme.Spacing.xl) {
-                restDayToggleCard
+                dayTypePicker
 
-                if !workoutDay.isRestDay {
+                if workoutDay.isRestDay {
+                    restDayStatusCard
+                        .transition(.opacity)
+                } else {
                     if !workoutDay.exercises.isEmpty {
                         summaryCard
                     }
@@ -547,7 +579,10 @@ struct DayDetailEditorView: View {
             .padding(.horizontal, Theme.Spacing.xl)
             .padding(.top, Theme.Spacing.m)
             .padding(.bottom, Theme.Spacing.xxl)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: workoutDay.isRestDay)
+            .animation(
+                accessibilityReduceMotion ? nil : .easeInOut(duration: 0.22),
+                value: workoutDay.isRestDay
+            )
             .animation(.spring(response: 0.4, dampingFraction: 0.85), value: workoutDay.exercises.count)
         }
         .background(Theme.Color.background.ignoresSafeArea())
@@ -581,34 +616,46 @@ struct DayDetailEditorView: View {
         }
     }
 
-    // MARK: Rest day toggle
+    // MARK: Day type
 
-    private var restDayToggleCard: some View {
+    private var dayTypePicker: some View {
+        Picker("当天类型", selection: $workoutDay.isRestDay) {
+            Text("训练日").tag(false)
+            Text("休息日").tag(true)
+        }
+        .pickerStyle(.segmented)
+        .frame(minHeight: 44)
+        .onChange(of: workoutDay.isRestDay) { _, _ in
+            UISelectionFeedbackGenerator().selectionChanged()
+        }
+    }
+
+    private var restDayStatusCard: some View {
         HStack(spacing: Theme.Spacing.m) {
-            EmojiTile(emoji: workoutDay.isRestDay ? "🛋️" : "💪",
-                      tint: workoutDay.isRestDay ? Theme.Color.tintMint : Theme.Color.accentSoft)
+            EmojiTile(emoji: "🔋", tint: Theme.Color.tintMint)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(
                     AppLocalization.string(
-                        workoutDay.isRestDay ? "休息日" : "训练日"
+                        "今天不安排训练",
+                        languageIdentifier: locale.identifier
                     )
                 )
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
                 Text(
                     AppLocalization.string(
-                        workoutDay.isRestDay
+                        workoutDay.exercises.isEmpty
                             ? "肌肉正在修复，好好放松"
-                            : "安排今天的训练动作"
+                            : "已编排的动作会保留，切回训练日后继续编辑",
+                        languageIdentifier: locale.identifier
                     )
                 )
                     .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Toggle("", isOn: $workoutDay.isRestDay)
-                .labelsHidden()
-                .tint(Theme.Color.success)
         }
         .tiimoCard()
     }

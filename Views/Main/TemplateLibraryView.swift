@@ -130,9 +130,28 @@ struct TemplateLibraryView: View {
 
 struct TemplateCard: View {
     let template: WorkoutTemplate
+    @Environment(\.locale) private var locale
 
     private var previewNames: [String] {
         template.sortedExercises.prefix(3).map { ExerciseLibrary.displayName(for: $0.name) }
+    }
+
+    private var summary: String {
+        if template.cardioCount > 0 {
+            return AppLocalization.format(
+                "%lld 个动作 · %lld 组 · %lld 分有氧",
+                languageIdentifier: locale.identifier,
+                template.exercises.count,
+                template.totalSets,
+                template.cardioDurationSeconds / 60
+            )
+        }
+        return AppLocalization.format(
+            "%lld 个动作 · %lld 组",
+            languageIdentifier: locale.identifier,
+            template.exercises.count,
+            template.totalSets
+        )
     }
 
     var body: some View {
@@ -151,9 +170,7 @@ struct TemplateCard: View {
                         .font(.body.weight(.semibold))
                         .foregroundStyle(Theme.Color.textPrimary)
                         .lineLimit(1)
-                    Text(template.cardioCount > 0
-                        ? "\(template.exercises.count) 个动作 · \(template.totalSets) 组 · \(template.cardioDurationSeconds / 60) 分有氧"
-                        : "\(template.exercises.count) 个动作 · \(template.totalSets) 组")
+                    Text(summary)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Theme.Color.textSecondary)
                 }
@@ -179,6 +196,7 @@ struct TemplateCard: View {
 
 struct TemplateNameSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @Binding var name: String
     var actionTitle = "保存"
     var onCommit: (String) -> Void
@@ -200,7 +218,12 @@ struct TemplateNameSheet: View {
                 .themedField()
 
             Button(action: commit) {
-                Text(AppLocalization.string(actionTitle))
+                Text(
+                    AppLocalization.string(
+                        actionTitle,
+                        languageIdentifier: locale.identifier
+                    )
+                )
             }
             .buttonStyle(.primaryCTA)
             .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

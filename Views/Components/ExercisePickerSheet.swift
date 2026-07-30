@@ -180,6 +180,7 @@ struct ExercisePickerSheet: View {
 struct DurationSettingControl: View {
     let title: String
     @Binding var seconds: Int
+    @Environment(\.locale) private var locale
 
     private var minutesBinding: Binding<Int> {
         Binding(
@@ -191,7 +192,12 @@ struct DurationSettingControl: View {
     var body: some View {
         Stepper(value: minutesBinding, in: 1...180, step: 5) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(AppLocalization.string(title))
+                Text(
+                    AppLocalization.string(
+                        title,
+                        languageIdentifier: locale.identifier
+                    )
+                )
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(Theme.Color.textSecondary)
                 Text(ExerciseFormatting.shortDuration(seconds))

@@ -105,6 +105,7 @@ struct RestTimerBadge: View {
 struct RestReadyView: View {
     let nextSetNumber: Int
     let wasSkipped: Bool
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: Theme.Spacing.m) {
@@ -113,10 +114,21 @@ struct RestReadyView: View {
                 .foregroundStyle(Theme.Color.success)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(wasSkipped ? "已跳过休息" : "休息完成")
+                Text(
+                    AppLocalization.string(
+                        wasSkipped ? "已跳过休息" : "休息完成",
+                        languageIdentifier: locale.identifier
+                    )
+                )
                     .appScaledFont(size: 14, relativeTo: .subheadline, weight: .semibold)
                     .foregroundStyle(Theme.Color.textPrimary)
-                Text("可以开始第 \(nextSetNumber) 组")
+                Text(
+                    AppLocalization.format(
+                        "可以开始第 %lld 组",
+                        languageIdentifier: locale.identifier,
+                        nextSetNumber
+                    )
+                )
                     .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
             }

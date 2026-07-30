@@ -184,6 +184,17 @@
         }
       }
     },
+    "%lld / %lld 个" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
     "%lld / %lld 个动作已完成" : {
       "localizations" : {
         "en" : {
@@ -232,6 +243,17 @@
         }
       }
     },
+    "%lld / %lld 项 · %lld 分钟" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld items · %3$lld min"
+          }
+        }
+      }
+    },
     "%lld / %lld 项有氧 · %lld 分钟" : {
       "localizations" : {
         "en" : {
@@ -259,6 +281,7 @@
       }
     },
     "%lld 个动作 · %lld 组" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -275,6 +298,7 @@
       }
     },
     "%lld 个动作 · %lld 组 · %lld 分有氧" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -378,6 +402,7 @@
       }
     },
     "%lld 组" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -388,6 +413,7 @@
       }
     },
     "%lld 组 · %lld 分" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1190,6 +1216,17 @@
         }
       }
     },
+    "今天不安排训练" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Workout Scheduled Today"
+          }
+        }
+      }
+    },
     "今天也要组组爆拉！" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1396,6 +1433,7 @@
       }
     },
     "休息完成" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1791,6 +1829,17 @@
         }
       }
     },
+    "创建并编辑" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create & Edit"
+          }
+        }
+      }
+    },
     "删除" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2064,6 +2113,7 @@
       }
     },
     "可以开始第 %lld 组" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2549,6 +2599,7 @@
       }
     },
     "已完成" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2655,6 +2706,17 @@
         }
       }
     },
+    "已编排的动作会保留，切回训练日后继续编辑" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Planned exercises are saved. Switch back to Training Day to continue editing."
+          }
+        }
+      }
+    },
     "已记录 %lld 个有效训练日" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2667,6 +2729,7 @@
       }
     },
     "已跳过休息" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2799,6 +2862,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The camera isn’t available on this device. You can still choose an avatar from your photo library."
+          }
+        }
+      }
+    },
+    "当天类型" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Type"
           }
         }
       }
@@ -3060,6 +3134,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Take Photo"
+          }
+        }
+      }
+    },
+    "推荐动作" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggested Exercises"
           }
         }
       }
@@ -3575,6 +3660,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "workouts"
+          }
+        }
+      }
+    },
+    "次数" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reps"
           }
         }
       }
@@ -4281,7 +4377,7 @@
       }
     },
     "肌肉正在修复，好好放松" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4561,12 +4657,12 @@
       }
     },
     "训练日" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Training Days"
+            "value" : "Training Day"
           }
         }
       }
@@ -5029,6 +5125,7 @@
       }
     },
     "部分完成" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

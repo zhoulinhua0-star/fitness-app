@@ -666,6 +666,7 @@ private struct ExerciseSetRowID: Hashable {
 
 private struct RestDurationPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     let canSaveToPlan: Bool
     let onUseToday: (Int) -> Void
@@ -748,6 +749,16 @@ private struct RestDurationPickerSheet: View {
     }
 
     private func shortDuration(_ seconds: Int) -> String {
-        seconds < 60 ? "\(seconds)秒" : "\(seconds / 60)分"
+        seconds < 60
+            ? AppLocalization.format(
+                "%lld 秒",
+                languageIdentifier: locale.identifier,
+                seconds
+            )
+            : AppLocalization.format(
+                "%lld 分钟",
+                languageIdentifier: locale.identifier,
+                seconds / 60
+            )
     }
 }
