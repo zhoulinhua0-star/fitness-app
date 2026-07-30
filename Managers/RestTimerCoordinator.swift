@@ -21,18 +21,6 @@ struct CompletedRestTimer: Equatable {
     let reason: RestCompletionReason
 }
 
-struct RestTimerNotice: Equatable, Identifiable {
-    enum Kind: Equatable {
-        case completed
-        case warning
-    }
-
-    let id = UUID()
-    let kind: Kind
-    let title: String
-    let message: String
-}
-
 @MainActor
 @Observable
 final class RestTimerCoordinator {
@@ -45,11 +33,8 @@ final class RestTimerCoordinator {
 
     private(set) var timers: [String: ActiveRestTimer] = [:]
     private(set) var completions: [String: CompletedRestTimer] = [:]
-    private(set) var notice: RestTimerNotice?
 
     private var tickerTask: Task<Void, Never>?
-    private var noticeDismissTask: Task<Void, Never>?
-    private var queuedNotices: [RestTimerNotice] = []
 
     private init() {
         restorePersistedTimers()
@@ -163,12 +148,6 @@ final class RestTimerCoordinator {
         }
     }
 
-    func dismissNotice() {
-        noticeDismissTask?.cancel()
-        notice = nil
-        showNextNoticeIfNeeded()
-    }
-
     private func scheduleSystemNotification(for timer: ActiveRestTimer) {
         guard AppSettings.shared.restNotificationsEnabled else {
             NotificationManager.cancelRestEndNotification(timerID: timer.id)
@@ -185,13 +164,13 @@ final class RestTimerCoordinator {
             )
             switch result {
             case .permissionDenied:
-                presentNotice(
+                WorkoutTimerNoticeCenter.shared.present(
                     kind: .warning,
                     title: AppLocalization.string("系统通知未开启"),
                     message: AppLocalization.string("留在 App 内仍会提醒；锁屏或退出 App 时请先开启通知权限。")
                 )
             case .failed:
-                presentNotice(
+                WorkoutTimerNoticeCenter.shared.present(
                     kind: .warning,
                     title: AppLocalization.string("系统提醒创建失败"),
                     message: AppLocalization.string("App 内计时仍会继续，请稍后在通知设置中重试。")
@@ -334,7 +313,7 @@ final class RestTimerCoordinator {
         if AppSettings.shared.restSoundEnabled {
             AudioServicesPlaySystemSound(1007)
         }
-        presentNotice(
+        WorkoutTimerNoticeCenter.shared.present(
             kind: .completed,
             title: AppLocalization.string("休息结束"),
             message: AppLocalization.format(
@@ -344,27 +323,4 @@ final class RestTimerCoordinator {
         )
     }
 
-    private func presentNotice(kind: RestTimerNotice.Kind, title: String, message: String) {
-        let newNotice = RestTimerNotice(kind: kind, title: title, message: message)
-        guard notice == nil else {
-            queuedNotices.append(newNotice)
-            return
-        }
-        show(newNotice)
-    }
-
-    private func show(_ newNotice: RestTimerNotice) {
-        notice = newNotice
-        noticeDismissTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(4))
-            guard !Task.isCancelled else { return }
-            self?.notice = nil
-            self?.showNextNoticeIfNeeded()
-        }
-    }
-
-    private func showNextNoticeIfNeeded() {
-        guard notice == nil, !queuedNotices.isEmpty else { return }
-        show(queuedNotices.removeFirst())
-    }
 }

@@ -93,7 +93,10 @@ struct ExpandableExerciseRow: View {
         .animation(Self.expandSpring, value: isExpanded)
         .sensoryFeedback(.selection, trigger: isExpanded)
         .onAppear {
-            guard !exercise.isCardio else { return }
+            if exercise.isCardio {
+                syncCardioGoalTimer()
+                return
+            }
             todayRestSeconds = loadTodayRestOverride()
             migrateLegacyRestTimerIfNeeded()
             restTimers.register(timerID: restTimerID, exerciseName: exercise.name)
@@ -385,17 +388,20 @@ struct ExpandableExerciseRow: View {
 
     private func startCardio() {
         exercise.startCardio()
+        syncCardioGoalTimer()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         onSetProgressChanged()
     }
 
     private func pauseCardio() {
         exercise.pauseCardio()
+        CardioGoalCoordinator.shared.pause(timerID: restTimerID)
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         onSetProgressChanged()
     }
 
     private func finishCardio() {
+        CardioGoalCoordinator.shared.cancel(timerID: restTimerID)
         let duration = exercise.finishCardio()
         WorkoutHistoryManager.logCardio(
             context: modelContext,
@@ -408,6 +414,7 @@ struct ExpandableExerciseRow: View {
     }
 
     private func resetCardio() {
+        CardioGoalCoordinator.shared.cancel(timerID: restTimerID)
         WorkoutHistoryManager.removeCardioLog(
             context: modelContext,
             session: session,
@@ -416,6 +423,19 @@ struct ExpandableExerciseRow: View {
         exercise.resetCardio()
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
         onSetProgressChanged()
+    }
+
+    private func syncCardioGoalTimer() {
+        guard exercise.cardioStartedAt != nil, !exercise.isFullyCompletedToday else {
+            CardioGoalCoordinator.shared.cancel(timerID: restTimerID)
+            return
+        }
+        CardioGoalCoordinator.shared.start(
+            timerID: restTimerID,
+            exerciseName: exercise.name,
+            targetDurationSeconds: exercise.targetDurationSeconds,
+            elapsedSeconds: exercise.cardioElapsedSeconds()
+        )
     }
     
     private func setRow(setNumber: Int) -> some View {

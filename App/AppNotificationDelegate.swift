@@ -29,6 +29,24 @@ final class AppNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
             return []
         }
 
+        if content.categoryIdentifier == NotificationManager.cardioGoalCategoryIdentifier,
+           let timerID = content.userInfo["timerID"] as? String {
+            let exerciseName = content.userInfo["exerciseName"] as? String
+                ?? AppLocalization.string("当前动作")
+            let targetDurationSeconds =
+                (content.userInfo["targetDurationSeconds"] as? NSNumber)?.intValue ??
+                content.userInfo["targetDurationSeconds"] as? Int ??
+                0
+            await MainActor.run {
+                CardioGoalCoordinator.shared.notificationDelivered(
+                    timerID: timerID,
+                    exerciseName: exerciseName,
+                    targetDurationSeconds: targetDurationSeconds
+                )
+            }
+            return []
+        }
+
         if notification.request.identifier.hasPrefix(NotificationManager.dailyReminderIdentifierPrefix) {
             return []
         }
@@ -51,11 +69,17 @@ final class AppNotificationDelegate: NSObject, UIApplicationDelegate, UNUserNoti
             return
         }
 
-        guard content.categoryIdentifier == NotificationManager.restTimerCategoryIdentifier,
-              let timerID = content.userInfo["timerID"] as? String else { return }
+        guard let timerID = content.userInfo["timerID"] as? String else { return }
 
         await MainActor.run {
-            AppNavigation.shared.openRestTimer(timerID)
+            if content.categoryIdentifier == NotificationManager.cardioGoalCategoryIdentifier {
+                CardioGoalCoordinator.shared.notificationOpened(timerID: timerID)
+            }
+            guard content.categoryIdentifier == NotificationManager.restTimerCategoryIdentifier ||
+                    content.categoryIdentifier == NotificationManager.cardioGoalCategoryIdentifier else {
+                return
+            }
+            AppNavigation.shared.openTimerExercise(timerID)
         }
     }
 }

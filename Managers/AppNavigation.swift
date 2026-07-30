@@ -13,12 +13,12 @@ final class AppNavigation {
     static let shared = AppNavigation()
 
     var selectedTab: AppTab = .today
-    var pendingRestTimerID: String?
+    var pendingTimerExerciseID: String?
 
     private init() {}
 
-    func openRestTimer(_ timerID: String) {
+    func openTimerExercise(_ timerID: String) {
         selectedTab = .today
-        pendingRestTimerID = timerID
+        pendingTimerExerciseID = timerID
     }
 }

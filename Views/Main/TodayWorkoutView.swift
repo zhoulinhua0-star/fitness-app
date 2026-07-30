@@ -167,10 +167,10 @@ struct TodayWorkoutView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task(id: refreshKey) {
                 refreshTodaySessions()
-                openPendingRestTimerIfNeeded()
+                openPendingTimerExerciseIfNeeded()
             }
-            .onChange(of: navigation.pendingRestTimerID) { _, _ in
-                openPendingRestTimerIfNeeded()
+            .onChange(of: navigation.pendingTimerExerciseID) { _, _ in
+                openPendingTimerExerciseIfNeeded()
             }
             .sheet(isPresented: $showImprovEditor) {
                 ImprovWorkoutEditorSheet(onWorkoutChanged: handleImprovWorkoutChanged)
@@ -207,17 +207,17 @@ struct TodayWorkoutView: View {
         syncWidgetAndSave()
     }
 
-    private func openPendingRestTimerIfNeeded() {
-        guard let timerID = navigation.pendingRestTimerID else { return }
+    private func openPendingTimerExerciseIfNeeded() {
+        guard let timerID = navigation.pendingTimerExerciseID else { return }
         guard let exercise = activeExercises.first(where: {
             RestTimerCoordinator.timerID(for: $0.persistentModelID) == timerID
         }) else {
-            navigation.pendingRestTimerID = nil
+            navigation.pendingTimerExerciseID = nil
             return
         }
 
         expandedExerciseName = exercise.name
-        navigation.pendingRestTimerID = nil
+        navigation.pendingTimerExerciseID = nil
     }
 
     /// Delete improv exercises left over from previous days so they never
@@ -228,6 +228,9 @@ struct TodayWorkoutView: View {
         }
         for exercise in stale {
             RestTimerCoordinator.shared.cancel(
+                timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+            )
+            CardioGoalCoordinator.shared.cancel(
                 timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
             )
             modelContext.delete(exercise)
@@ -462,6 +465,9 @@ extension TodayWorkoutView {
 
         for exercise in todayImprovExercises {
             RestTimerCoordinator.shared.cancel(
+                timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+            )
+            CardioGoalCoordinator.shared.cancel(
                 timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
             )
             modelContext.delete(exercise)

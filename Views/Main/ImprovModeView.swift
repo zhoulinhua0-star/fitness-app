@@ -186,6 +186,7 @@ struct ImprovModeView: View {
     var onStartWorkout: () -> Void = {}
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @State private var selectedGroups: Set<MuscleGroupData> = []
     @State private var sessionExercises: [ImprovEntry] = []
     @State private var customName = ""
@@ -307,6 +308,7 @@ struct ImprovModeView: View {
             )
         }
         customName = ""
+        customFieldFocused = false
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
@@ -357,9 +359,10 @@ struct ImprovModeView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: Theme.Spacing.xl) {
+        ScrollViewReader { proxy in
+            ZStack(alignment: .bottom) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: Theme.Spacing.xl) {
 
                     // ── Mascot + question ──────────────────────────────
                     VStack(spacing: Theme.Spacing.l) {
@@ -455,20 +458,28 @@ struct ImprovModeView: View {
                     customSection
 
                     Color.clear.frame(height: sessionExercises.isEmpty ? 0 : 100)
+                    }
+                    .padding(.horizontal, Theme.Spacing.xl)
+                    .padding(.bottom, Theme.Spacing.xxl)
                 }
-                .padding(.horizontal, Theme.Spacing.xl)
-                .padding(.bottom, Theme.Spacing.xxl)
-            }
-            .scrollDismissesKeyboard(.interactively)
+                .scrollDismissesKeyboard(.interactively)
 
-            // ── Floating start bar ─────────────────────────────────────
-            if !sessionExercises.isEmpty {
-                floatingStartBar
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sessionExercises.isEmpty)
+                // ── Floating start bar ─────────────────────────────────────
+                if !sessionExercises.isEmpty {
+                    floatingStartBar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sessionExercises.isEmpty)
+                }
+            }
+            .onChange(of: customFieldFocused) { _, isFocused in
+                guard isFocused else { return }
+                withAnimation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.25)) {
+                    proxy.scrollTo("improvCustomNameField", anchor: .center)
+                }
             }
         }
         .onAppear { triggerEntranceAnimation() }
+        .appKeyboardToolbar()
         .sheet(isPresented: $showingExercisePicker) {
             ExercisePickerSheet(
                 selectedNames: Set(sessionExercises.map(\.name)),
@@ -487,6 +498,9 @@ struct ImprovModeView: View {
         )) {
             for exercise in existing {
                 RestTimerCoordinator.shared.cancel(
+                    timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+                )
+                CardioGoalCoordinator.shared.cancel(
                     timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
                 )
                 modelContext.delete(exercise)
@@ -541,6 +555,7 @@ struct ImprovModeView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .focused($customFieldFocused)
+                    .id("improvCustomNameField")
                     .submitLabel(.done)
                     .onSubmit(addCustomExercise)
                     .padding(.horizontal, Theme.Spacing.m)
@@ -548,6 +563,13 @@ struct ImprovModeView: View {
                     .background(
                         Theme.Color.surfaceMuted,
                         in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                            .stroke(
+                                customFieldFocused ? Theme.Color.accent : Theme.Color.hairline,
+                                lineWidth: customFieldFocused ? 1.5 : 1
+                            )
                     )
 
                     Button(action: addCustomExercise) {

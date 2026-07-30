@@ -54,6 +54,7 @@ This is RepDay's first major development update since the initial App Store rele
 
 - RepDay now supports strength exercises and duration-based cardio exercises in the same plan and workout.
 - Cardio sessions include a target duration and a live timer with start, pause, resume, finish-and-save, and reset controls.
+- Cardio targets can be selected freely from 1 to 180 minutes, with common presets and predictable quick-step values that move cleanly between 1, 5, 10, 15 minutes, and beyond.
 - Built-in cardio activities include treadmill running, outdoor running, indoor and outdoor cycling, elliptical, rowing machine, stair climber, jump rope, and aerobics.
 - Workout history, completion summaries, statistics, calendar markers, weekly summaries, and the home-screen widget now understand both completed strength sets and cardio minutes.
 
@@ -70,6 +71,8 @@ This is RepDay's first major development update since the initial App Store rele
 - Timers remain visible on collapsed exercise cards and can be adjusted by ±15 seconds or skipped.
 - Timer state is saved locally, so an unfinished timer or a recently completed rest can be restored after navigating away or reopening the app.
 - Foreground completion uses an in-app banner, while background, lock-screen, and terminated-app delivery is handled by time-sensitive local notifications.
+- Reaching a cardio target now uses the same reminder experience: an in-app banner while RepDay is open and a time-sensitive local notification in the background or on the lock screen.
+- Cardio goal reminders never stop or save the workout automatically; users can keep training, and tapping the notification returns to the matching exercise.
 - Daily workout reminders are scheduled only for relevant training days and refresh automatically when the plan, workout status, or notification settings change.
 
 ##### Clearer planning
@@ -93,6 +96,7 @@ This is RepDay's first major development update since the initial App Store rele
 - Built-in exercises, weekdays, statistics, notifications, calendar events, rest timers, dynamic units, and the widget all follow the selected language. User-created names remain unchanged.
 - A full English-mode audit removed remaining Chinese labels from templates, intensity badges, set counts, repetition controls, summaries, analytics, and timer components.
 - Three text-density choices—Compact, Standard, and Large—work with iOS Dynamic Type without changing the app's established font families.
+- Text entry is now keyboard-aware throughout the app: focused fields scroll into view, editing fields use consistent focus feedback, and a shared Done control makes the keyboard easy to dismiss.
 - Key layouts adapt at accessibility text sizes, touch targets remain at least 44 × 44 pt, and relevant animations respect Reduce Motion.
 
 ##### System integration and reliability
@@ -108,6 +112,7 @@ This is RepDay's first major development update since the initial App Store rele
 
 - RepDay 现在可以在同一份计划、同一次训练中同时安排力量动作和按时长记录的有氧动作。
 - 有氧训练支持目标时长，以及开始、暂停、继续、结束并保存、重新计时等完整操作。
+- 有氧目标可在 1 至 180 分钟之间自由选择，并提供常用预设；快速调整会按 1、5、10、15 分钟及后续整 5 分钟档位自然变化。
 - 内置有氧动作包括跑步机、户外跑步、动感单车、户外骑行、椭圆机、划船机、爬楼机、跳绳和有氧操。
 - 训练历史、完成摘要、统计、训练日历、周计划摘要和桌面 Widget 均能同时理解力量组数与有氧分钟。
 
@@ -124,6 +129,8 @@ This is RepDay's first major development update since the initial App Store rele
 - 动作卡片收起后仍能看到倒计时，并可执行跳过或 ±15 秒调整。
 - 计时状态保存在本地；离开页面或重新打开 App 后，未结束计时和近期完成状态都可以恢复。
 - App 在前台时使用应用内横幅提醒；在后台、锁屏或 App 已退出时，由 iOS 通过时效性本地通知负责交付。
+- 有氧达到目标时长后也会使用相同提醒体验：RepDay 在前台时显示应用内横幅，位于后台或锁屏时发送时效性本地通知。
+- 有氧目标提醒不会自动停止或保存训练；用户可以继续运动，点击通知可返回并展开对应动作。
 - 每日训练提醒只针对实际训练日安排，并会在计划、训练状态或通知设置变化后自动刷新。
 
 ##### 更清晰的计划体验
@@ -147,6 +154,7 @@ This is RepDay's first major development update since the initial App Store rele
 - 内置动作、星期、统计、通知、日历事件、休息计时、动态单位和 Widget 都会跟随所选语言；用户自定义名称保持原样。
 - 对 English 模式进行了完整复查，清除了模板、强度标签、组数、次数控件、完成摘要、统计和计时组件中的残留中文。
 - 新增“紧凑、标准、大字”三档文字密度，并继续与 iOS Dynamic Type 协同工作，不改变现有字体风格。
+- 全 App 输入体验现在会主动避让键盘：聚焦输入框会滚动到可见位置，编辑状态拥有一致的视觉反馈，并可通过统一的“完成”按钮轻松收起键盘。
 - 核心布局会适配辅助功能大字号；点击区域保持至少 44 × 44 pt，相关动画尊重“减少动态效果”设置。
 
 ##### 系统集成与可靠性

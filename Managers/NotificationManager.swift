@@ -24,10 +24,12 @@ struct WorkoutDayReminderSnapshot: Sendable {
 enum NotificationManager {
     static let dailyReminderIdentifierPrefix = "dailyWorkoutReminder."
     static let restTimerCategoryIdentifier = "restTimer"
+    static let cardioGoalCategoryIdentifier = "cardioGoal"
     static let testCategoryIdentifier = "notificationTest"
 
     private static let legacyReminderIdentifier = "dailyWorkoutReminder"
     private static let restTimerEndIdentifierPrefix = "restTimerEnd."
+    private static let cardioGoalIdentifierPrefix = "cardioGoal."
     private static let legacyRestTimerEndIdentifier = "restTimerEnd"
 
     static func authorizationState() async -> NotificationAuthorizationState {
@@ -203,11 +205,68 @@ enum NotificationManager {
         }
     }
 
+    static func scheduleCardioGoalNotification(
+        after seconds: Int,
+        exerciseName: String,
+        timerID: String,
+        targetDurationSeconds: Int,
+        playsSound: Bool
+    ) async -> NotificationScheduleResult {
+        guard seconds > 0 else { return .failed }
+        guard await requestAuthorization() else { return .permissionDenied }
+
+        let center = UNUserNotificationCenter.current()
+        let identifier = cardioGoalIdentifier(for: timerID)
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        center.removeDeliveredNotifications(withIdentifiers: [identifier])
+
+        let content = UNMutableNotificationContent()
+        content.title = AppLocalization.string("有氧目标已达到")
+        content.body = AppLocalization.format(
+            "%@ · 已完成 %@，可以继续或返回 RepDay 保存。",
+            ExerciseLibrary.displayName(for: exerciseName),
+            ExerciseFormatting.shortDuration(targetDurationSeconds)
+        )
+        content.sound = playsSound ? .default : nil
+        content.interruptionLevel = .timeSensitive
+        content.categoryIdentifier = cardioGoalCategoryIdentifier
+        content.threadIdentifier = "cardioGoals"
+        content.userInfo = [
+            "timerID": timerID,
+            "exerciseName": exerciseName,
+            "targetDurationSeconds": targetDurationSeconds
+        ]
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: TimeInterval(seconds),
+            repeats: false
+        )
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await center.add(request)
+            return .scheduled
+        } catch {
+            return .failed
+        }
+    }
+
     static func cancelRestEndNotification(timerID: String) {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(
                 withIdentifiers: [restTimerEndIdentifier(for: timerID)]
             )
+    }
+
+    static func cancelCardioGoalNotification(timerID: String) {
+        let center = UNUserNotificationCenter.current()
+        let identifier = cardioGoalIdentifier(for: timerID)
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        center.removeDeliveredNotifications(withIdentifiers: [identifier])
     }
 
     static func cancelLegacyRestEndNotification() {
@@ -217,6 +276,10 @@ enum NotificationManager {
 
     private static func restTimerEndIdentifier(for timerID: String) -> String {
         restTimerEndIdentifierPrefix + timerID
+    }
+
+    private static func cardioGoalIdentifier(for timerID: String) -> String {
+        cardioGoalIdentifierPrefix + timerID
     }
 
     private static func dateIdentifier(for date: Date) -> String {

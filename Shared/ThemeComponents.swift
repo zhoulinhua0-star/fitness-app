@@ -209,7 +209,7 @@ struct ThemedStepper: View {
 extension View {
     /// Wraps a control (e.g. a plain TextField) in a soft, rounded inset field
     /// — replaces the harsh system `.roundedBorder` style.
-    func themedField() -> some View {
+    func themedField(isFocused: Bool = false) -> some View {
         self
             .padding(.horizontal, Theme.Spacing.m)
             .padding(.vertical, 14)
@@ -217,7 +217,11 @@ extension View {
                         in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
-                    .stroke(Theme.Color.hairline, lineWidth: 1)
+                    .stroke(
+                        isFocused ? Theme.Color.accent : Theme.Color.hairline,
+                        lineWidth: isFocused ? 1.5 : 1
+                    )
             )
     }
+
 }

@@ -3,6 +3,7 @@ import SwiftUI
 
 private enum PendingNotificationAction {
     case enableRestReminders
+    case enableCardioGoalReminders
     case enableDailyReminders
     case sendTest
 }
@@ -22,8 +23,9 @@ struct NotificationSettingsView: View {
         Form {
             Section {
                 Toggle("休息结束提醒", isOn: $settings.restNotificationsEnabled)
+                Toggle("有氧目标提醒", isOn: $settings.cardioGoalNotificationsEnabled)
 
-                if settings.restNotificationsEnabled {
+                if settings.restNotificationsEnabled || settings.cardioGoalNotificationsEnabled {
                     Toggle("声音", isOn: $settings.restSoundEnabled)
                     Toggle("触感反馈", isOn: $settings.restHapticsEnabled)
 
@@ -36,7 +38,7 @@ struct NotificationSettingsView: View {
 
                 notificationPermissionRow
             } header: {
-                Text("休息提醒")
+                Text("计时提醒")
             } footer: {
                 Text("App 在前台时显示页内提醒；锁屏或退出 App 后由系统本地通知提醒。")
             }
@@ -85,6 +87,18 @@ struct NotificationSettingsView: View {
                 RestTimerCoordinator.shared.rescheduleSystemNotifications()
             }
         }
+        .onChange(of: settings.cardioGoalNotificationsEnabled) { _, enabled in
+            Task {
+                if enabled {
+                    let allowed = await NotificationManager.requestAuthorization()
+                    if !allowed {
+                        presentPermissionAlert(for: .enableCardioGoalReminders)
+                    }
+                }
+                await refreshAuthorizationState()
+                CardioGoalCoordinator.shared.rescheduleSystemNotifications()
+            }
+        }
         .onChange(of: settings.remindersEnabled) { _, enabled in
             Task {
                 await refreshDailyReminders(promptOnPermissionDenied: enabled)
@@ -92,6 +106,7 @@ struct NotificationSettingsView: View {
         }
         .onChange(of: settings.restSoundEnabled) { _, _ in
             RestTimerCoordinator.shared.rescheduleSystemNotifications()
+            CardioGoalCoordinator.shared.rescheduleSystemNotifications()
         }
         .alert("通知权限未开启", isPresented: $showNotificationPermissionAlert) {
             Button("取消", role: .cancel) {
@@ -101,7 +116,7 @@ struct NotificationSettingsView: View {
                 openNotificationSettings()
             }
         } message: {
-            Text("要接收休息结束和训练提醒，请在系统设置中允许 RepDay 发送通知。")
+            Text("要接收休息结束、有氧目标和训练提醒，请在系统设置中允许 RepDay 发送通知。")
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -170,6 +185,7 @@ struct NotificationSettingsView: View {
         let todayExercises = workoutDays.first(where: { $0.dayName == todayName })?.exercises ?? []
         let completedToday = !todayExercises.isEmpty && todayExercises.allSatisfy(\.isFullyCompletedToday)
         let isWorkoutActive = RestTimerCoordinator.shared.activeCount > 0 ||
+            CardioGoalCoordinator.shared.activeCount > 0 ||
             todayExercises.contains { $0.effectiveCompletedSetCount > 0 && !$0.isFullyCompletedToday }
         let snapshots = workoutDays.map {
             WorkoutDayReminderSnapshot(
@@ -233,6 +249,9 @@ struct NotificationSettingsView: View {
             switch action {
             case .enableRestReminders:
                 RestTimerCoordinator.shared.rescheduleSystemNotifications()
+                notificationStatusMessage = AppLocalization.string("系统通知权限已开启")
+            case .enableCardioGoalReminders:
+                CardioGoalCoordinator.shared.rescheduleSystemNotifications()
                 notificationStatusMessage = AppLocalization.string("系统通知权限已开启")
             case .enableDailyReminders:
                 await refreshDailyReminders()

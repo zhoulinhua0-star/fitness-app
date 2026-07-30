@@ -215,7 +215,7 @@ struct TemplateNameSheet: View {
                 .focused($focused)
                 .submitLabel(.done)
                 .onSubmit(commit)
-                .themedField()
+                .themedField(isFocused: focused)
 
             Button(action: commit) {
                 Text(
@@ -233,6 +233,7 @@ struct TemplateNameSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.Color.background.ignoresSafeArea())
         .onAppear { focused = true }
+        .appKeyboardToolbar()
     }
 
     private func commit() {
@@ -248,6 +249,7 @@ struct TemplateNameSheet: View {
 struct TemplateEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var template: WorkoutTemplate
     var automaticallyFocusComposer = false
 
@@ -269,56 +271,69 @@ struct TemplateEditorView: View {
     private var totalSets: Int { template.totalSets }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: Theme.Spacing.xl) {
-                if !template.exercises.isEmpty { summaryCard }
-                exercisesSection
-                composerSection
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: Theme.Spacing.xl) {
+                    if !template.exercises.isEmpty { summaryCard }
+                    exercisesSection(scrollProxy: proxy)
+                    composerSection
+                }
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.top, Theme.Spacing.m)
+                .padding(.bottom, Theme.Spacing.xxl)
+                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: template.exercises.count)
             }
-            .padding(.horizontal, Theme.Spacing.xl)
-            .padding(.top, Theme.Spacing.m)
-            .padding(.bottom, Theme.Spacing.xxl)
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: template.exercises.count)
-        }
-        .background(Theme.Color.background.ignoresSafeArea())
-        .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(template.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingExercisePicker) {
-            ExercisePickerSheet(
-                selectedNames: Set(template.exercises.map(\.name)),
-                onSelect: addExerciseFromLibrary
-            )
-        }
-        .onAppear {
-            guard automaticallyFocusComposer, !didAutomaticallyFocusComposer else { return }
-            didAutomaticallyFocusComposer = true
-            nameFieldFocused = true
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button { presentRename() } label: { Label("重命名模板", systemImage: "pencil") }
-                    if !template.exercises.isEmpty {
-                        Button(role: .destructive, action: clearAllExercises) {
-                            Label("清空动作", systemImage: "eraser")
+            .background(Theme.Color.background.ignoresSafeArea())
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(template.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingExercisePicker) {
+                ExercisePickerSheet(
+                    selectedNames: Set(template.exercises.map(\.name)),
+                    onSelect: addExerciseFromLibrary
+                )
+            }
+            .onAppear {
+                guard automaticallyFocusComposer, !didAutomaticallyFocusComposer else { return }
+                didAutomaticallyFocusComposer = true
+                nameFieldFocused = true
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button { presentRename() } label: { Label("重命名模板", systemImage: "pencil") }
+                        if !template.exercises.isEmpty {
+                            Button(role: .destructive, action: clearAllExercises) {
+                                Label("清空动作", systemImage: "eraser")
+                            }
                         }
+                        Button(role: .destructive, action: deleteTemplate) {
+                            Label("删除模板", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(Theme.Color.accent)
                     }
-                    Button(role: .destructive, action: deleteTemplate) {
-                        Label("删除模板", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .foregroundStyle(Theme.Color.accent)
                 }
             }
+            .onChange(of: nameFieldFocused) { _, isFocused in
+                guard isFocused else { return }
+                revealInput("templateComposerNameField", using: proxy)
+            }
         }
+        .appKeyboardToolbar()
         .sheet(isPresented: $showingRenameSheet) {
             TemplateNameSheet(name: $renameText) { finalName in
                 template.name = finalName
                 try? modelContext.save()
             }
             .presentationDetents([.height(220)])
+        }
+    }
+
+    private func revealInput(_ id: String, using proxy: ScrollViewProxy) {
+        withAnimation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.25)) {
+            proxy.scrollTo(id, anchor: .center)
         }
     }
 
@@ -352,7 +367,7 @@ struct TemplateEditorView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var exercisesSection: some View {
+    private func exercisesSection(scrollProxy: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
             SectionPill(title: "模板动作", count: template.exercises.count,
                         systemImage: "dumbbell.fill", tint: Theme.Color.tintPeach)
@@ -372,14 +387,17 @@ struct TemplateEditorView: View {
                 .tiimoCard(padding: Theme.Spacing.xl)
             } else {
                 ForEach(Array(sortedExercises.enumerated()), id: \.element.persistentModelID) { index, exercise in
+                    let nameFieldID = "templateExerciseName-\(exercise.persistentModelID)"
                     TemplateExerciseEditorCard(
                         exercise: exercise,
                         canMoveUp: index > 0,
                         canMoveDown: index < sortedExercises.count - 1,
                         onMoveUp: { moveExercise(at: index, by: -1) },
                         onMoveDown: { moveExercise(at: index, by: 1) },
-                        onDelete: { deleteExercise(exercise) }
+                        onDelete: { deleteExercise(exercise) },
+                        onNameFocus: { revealInput(nameFieldID, using: scrollProxy) }
                     )
+                    .id(nameFieldID)
                     .transition(.scale(scale: 0.95).combined(with: .opacity))
                 }
             }
@@ -410,9 +428,10 @@ struct TemplateEditorView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .focused($nameFieldFocused)
+                    .id("templateComposerNameField")
                     .submitLabel(.done)
                     .onSubmit(addExercise)
-                    .themedField()
+                    .themedField(isFocused: nameFieldFocused)
 
                 Picker("训练类型", selection: $newActivityType) {
                     ForEach(ExerciseActivityType.allCases) { type in
@@ -535,6 +554,9 @@ struct TemplateExerciseEditorCard: View {
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
     let onDelete: () -> Void
+    let onNameFocus: () -> Void
+
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
@@ -544,6 +566,27 @@ struct TemplateExerciseEditorCard: View {
                 TextField("动作名称", text: $exercise.name)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
+                    .focused($nameFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit { nameFieldFocused = false }
+                    .onChange(of: nameFieldFocused) { _, isFocused in
+                        if isFocused {
+                            onNameFocus()
+                        }
+                    }
+                    .padding(.horizontal, Theme.Spacing.s)
+                    .padding(.vertical, Theme.Spacing.s)
+                    .background(
+                        nameFieldFocused ? Theme.Color.accentSoft : Color.clear,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                            .stroke(
+                                nameFieldFocused ? Theme.Color.accent : Color.clear,
+                                lineWidth: 1.5
+                            )
+                    )
 
                 Menu {
                     if canMoveUp { Button { onMoveUp() } label: { Label("上移", systemImage: "arrow.up") } }

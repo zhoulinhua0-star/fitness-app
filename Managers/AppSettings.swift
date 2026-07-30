@@ -50,6 +50,7 @@ final class AppSettings {
     private enum Keys {
         static let defaultRestSeconds = "defaultRestSeconds"
         static let restNotificationsEnabled = "restNotificationsEnabled"
+        static let cardioGoalNotificationsEnabled = "cardioGoalNotificationsEnabled"
         static let restSoundEnabled = "restSoundEnabled"
         static let restHapticsEnabled = "restHapticsEnabled"
         static let remindersEnabled = "remindersEnabled"
@@ -69,6 +70,10 @@ final class AppSettings {
 
     var restNotificationsEnabled: Bool {
         didSet { defaults.set(restNotificationsEnabled, forKey: Keys.restNotificationsEnabled) }
+    }
+
+    var cardioGoalNotificationsEnabled: Bool {
+        didSet { defaults.set(cardioGoalNotificationsEnabled, forKey: Keys.cardioGoalNotificationsEnabled) }
     }
 
     var restSoundEnabled: Bool {
@@ -114,6 +119,9 @@ final class AppSettings {
         let storedRest = defaults.object(forKey: Keys.defaultRestSeconds) as? Int
         defaultRestSeconds = storedRest ?? 90
         restNotificationsEnabled = defaults.object(forKey: Keys.restNotificationsEnabled) as? Bool ?? true
+        cardioGoalNotificationsEnabled = defaults.object(
+            forKey: Keys.cardioGoalNotificationsEnabled
+        ) as? Bool ?? true
         restSoundEnabled = defaults.object(forKey: Keys.restSoundEnabled) as? Bool ?? true
         restHapticsEnabled = defaults.object(forKey: Keys.restHapticsEnabled) as? Bool ?? true
         remindersEnabled = defaults.bool(forKey: Keys.remindersEnabled)

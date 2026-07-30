@@ -97,6 +97,7 @@ struct ImprovWorkoutEditorSheet: View {
                 }
             }
         }
+        .appKeyboardToolbar()
         .presentationBackground(Theme.Color.background)
         .sheet(isPresented: $showingExercisePicker) {
             ExercisePickerSheet(
@@ -165,7 +166,7 @@ struct ImprovWorkoutEditorSheet: View {
                 .focused($nameFieldFocused)
                 .submitLabel(.done)
                 .onSubmit(addExercise)
-                .frame(minHeight: 44)
+                .themedField(isFocused: nameFieldFocused)
 
             if activeNameExists {
                 Label("这个动作已经在本次训练中", systemImage: "info.circle")
@@ -283,6 +284,9 @@ struct ImprovWorkoutEditorSheet: View {
             RestTimerCoordinator.shared.cancel(
                 timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
             )
+            CardioGoalCoordinator.shared.cancel(
+                timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+            )
             exercise.isRemovedFromImprov = true
         }
         repackActiveExerciseOrder()
@@ -293,6 +297,9 @@ struct ImprovWorkoutEditorSheet: View {
         withAnimation(.snappy) {
             lastRemoved = RemovedSnapshot(exercise: exercise, order: exercise.order)
             RestTimerCoordinator.shared.cancel(
+                timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+            )
+            CardioGoalCoordinator.shared.cancel(
                 timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
             )
             exercise.isRemovedFromImprov = true

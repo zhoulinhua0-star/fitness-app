@@ -14,11 +14,14 @@ import WidgetKit
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var systemDynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var workoutDays: [WorkoutDay]
     @Query(filter: #Predicate<Exercise> { $0.isImprov }) private var improvExercises: [Exercise]
     @AppStorage("improvFinishedDayStamp") private var improvFinishedDayStamp: Double = 0
     @State private var showSplash = true
     @State private var restTimers = RestTimerCoordinator.shared
+    @State private var cardioTimers = CardioGoalCoordinator.shared
+    @State private var timerNotices = WorkoutTimerNoticeCenter.shared
     @State private var settings = AppSettings.shared
 
     var body: some View {
@@ -35,11 +38,11 @@ struct RootView: View {
                 .zIndex(1)
             }
 
-            if !showSplash, let notice = restTimers.notice {
+            if !showSplash, let notice = timerNotices.notice {
                 VStack {
-                    RestTimerNoticeBanner(notice: notice) {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            restTimers.dismissNotice()
+                    WorkoutTimerNoticeBanner(notice: notice) {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                            timerNotices.dismiss()
                         }
                     }
                     Spacer()
@@ -55,18 +58,27 @@ struct RootView: View {
             settings.languagePreference.resolvedLocale()
         )
         .dynamicTypeSize(settings.textSizePreference.adjusted(from: systemDynamicTypeSize))
-        .animation(.spring(response: 0.35, dampingFraction: 0.86), value: restTimers.notice)
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.86),
+            value: timerNotices.notice
+        )
+        .task {
+            cardioTimers.reconcile(exercises: todayExercises)
+        }
         .task(id: reminderRefreshKey) {
             await refreshDailyReminders()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             restTimers.rescheduleSystemNotifications()
+            cardioTimers.reconcile(exercises: todayExercises)
+            cardioTimers.rescheduleSystemNotifications()
         }
         .onChange(of: settings.languagePreference) { _, preference in
             WidgetDataStore.languageIdentifier = preference.resolvedIdentifier()
             WidgetCenter.shared.reloadAllTimelines()
             restTimers.rescheduleSystemNotifications()
+            cardioTimers.rescheduleSystemNotifications()
         }
     }
 
@@ -91,6 +103,7 @@ struct RootView: View {
 
     private var isWorkoutActive: Bool {
         restTimers.activeCount > 0 ||
+            cardioTimers.activeCount > 0 ||
             todayExercises.contains { $0.effectiveCompletedSetCount > 0 && !$0.isFullyCompletedToday }
     }
 
@@ -129,15 +142,15 @@ struct RootView: View {
     }
 }
 
-private struct RestTimerNoticeBanner: View {
-    let notice: RestTimerNotice
+private struct WorkoutTimerNoticeBanner: View {
+    let notice: WorkoutTimerNotice
     let onDismiss: () -> Void
 
     var body: some View {
         HStack(spacing: Theme.Spacing.m) {
-            Image(systemName: notice.kind == .completed ? "checkmark.circle.fill" : "bell.slash.fill")
+            Image(systemName: noticeSymbol)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(notice.kind == .completed ? Theme.Color.success : Theme.Color.accent)
+                .foregroundStyle(notice.kind == .warning ? Theme.Color.accent : Theme.Color.success)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(notice.title)
@@ -146,7 +159,8 @@ private struct RestTimerNoticeBanner: View {
                 Text(notice.message)
                     .font(.caption)
                     .foregroundStyle(Theme.Color.textSecondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: Theme.Spacing.s)
@@ -169,6 +183,14 @@ private struct RestTimerNoticeBanner: View {
                 .stroke(Theme.Color.hairline, lineWidth: 1)
         )
         .shadow(color: Theme.Shadow.color, radius: Theme.Shadow.radius, x: 0, y: Theme.Shadow.y)
+    }
+
+    private var noticeSymbol: String {
+        switch notice.kind {
+        case .completed: "checkmark.circle.fill"
+        case .cardioGoal: "figure.run"
+        case .warning: "bell.slash.fill"
+        }
     }
 }
 

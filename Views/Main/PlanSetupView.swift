@@ -561,58 +561,71 @@ struct DayDetailEditorView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: Theme.Spacing.xl) {
-                dayTypePicker
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: Theme.Spacing.xl) {
+                    dayTypePicker
 
-                if workoutDay.isRestDay {
-                    restDayStatusCard
-                        .transition(.opacity)
-                } else {
-                    if !workoutDay.exercises.isEmpty {
-                        summaryCard
-                    }
-                    exercisesSection
-                    composerSection
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.xl)
-            .padding(.top, Theme.Spacing.m)
-            .padding(.bottom, Theme.Spacing.xxl)
-            .animation(
-                accessibilityReduceMotion ? nil : .easeInOut(duration: 0.22),
-                value: workoutDay.isRestDay
-            )
-            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: workoutDay.exercises.count)
-        }
-        .background(Theme.Color.background.ignoresSafeArea())
-        .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(
-            AppLocalization.format(
-                "%@ 安排",
-                WeekdayDisplay.fullLabel(for: workoutDay.dayName)
-            )
-        )
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingExercisePicker) {
-            ExercisePickerSheet(
-                selectedNames: Set(workoutDay.exercises.map(\.name)),
-                onSelect: addExerciseFromLibrary
-            )
-        }
-        .toolbar {
-            if !workoutDay.isRestDay && !workoutDay.exercises.isEmpty {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button(role: .destructive, action: clearAllExercises) {
-                            Label("清空今日动作", systemImage: "trash")
+                    if workoutDay.isRestDay {
+                        restDayStatusCard
+                            .transition(.opacity)
+                    } else {
+                        if !workoutDay.exercises.isEmpty {
+                            summaryCard
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundStyle(Theme.Color.accent)
+                        exercisesSection(scrollProxy: proxy)
+                        composerSection
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.top, Theme.Spacing.m)
+                .padding(.bottom, Theme.Spacing.xxl)
+                .animation(
+                    accessibilityReduceMotion ? nil : .easeInOut(duration: 0.22),
+                    value: workoutDay.isRestDay
+                )
+                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: workoutDay.exercises.count)
+            }
+            .background(Theme.Color.background.ignoresSafeArea())
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(
+                AppLocalization.format(
+                    "%@ 安排",
+                    WeekdayDisplay.fullLabel(for: workoutDay.dayName)
+                )
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showingExercisePicker) {
+                ExercisePickerSheet(
+                    selectedNames: Set(workoutDay.exercises.map(\.name)),
+                    onSelect: addExerciseFromLibrary
+                )
+            }
+            .toolbar {
+                if !workoutDay.isRestDay && !workoutDay.exercises.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button(role: .destructive, action: clearAllExercises) {
+                                Label("清空今日动作", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .foregroundStyle(Theme.Color.accent)
+                        }
                     }
                 }
             }
+            .onChange(of: nameFieldFocused) { _, isFocused in
+                guard isFocused else { return }
+                revealInput("dayComposerNameField", using: proxy)
+            }
+        }
+        .appKeyboardToolbar()
+    }
+
+    private func revealInput(_ id: String, using proxy: ScrollViewProxy) {
+        withAnimation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.25)) {
+            proxy.scrollTo(id, anchor: .center)
         }
     }
 
@@ -700,7 +713,7 @@ struct DayDetailEditorView: View {
 
     // MARK: Exercises
 
-    private var exercisesSection: some View {
+    private func exercisesSection(scrollProxy: ScrollViewProxy) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.m) {
             SectionPill(title: "已编排动作", count: workoutDay.exercises.count,
                         systemImage: "dumbbell.fill", tint: Theme.Color.tintPeach)
@@ -709,14 +722,17 @@ struct DayDetailEditorView: View {
                 emptyExercisesCard
             } else {
                 ForEach(Array(sortedExercises.enumerated()), id: \.element.persistentModelID) { index, exercise in
+                    let nameFieldID = "dayExerciseName-\(exercise.persistentModelID)"
                     ExerciseEditorCard(
                         exercise: exercise,
                         canMoveUp: index > 0,
                         canMoveDown: index < sortedExercises.count - 1,
                         onMoveUp: { moveExercise(at: index, by: -1) },
                         onMoveDown: { moveExercise(at: index, by: 1) },
-                        onDelete: { deleteExercise(exercise) }
+                        onDelete: { deleteExercise(exercise) },
+                        onNameFocus: { revealInput(nameFieldID, using: scrollProxy) }
                     )
+                    .id(nameFieldID)
                     .transition(.scale(scale: 0.95).combined(with: .opacity))
                 }
             }
@@ -801,9 +817,10 @@ struct DayDetailEditorView: View {
                     .font(.body.weight(.medium))
                     .foregroundStyle(Theme.Color.textPrimary)
                     .focused($nameFieldFocused)
+                    .id("dayComposerNameField")
                     .submitLabel(.done)
                     .onSubmit(addExercise)
-                    .themedField()
+                    .themedField(isFocused: nameFieldFocused)
 
                 Picker("训练类型", selection: $newActivityType) {
                     ForEach(ExerciseActivityType.allCases) { type in
@@ -878,6 +895,9 @@ struct DayDetailEditorView: View {
         RestTimerCoordinator.shared.cancel(
             timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
         )
+        CardioGoalCoordinator.shared.cancel(
+            timerID: RestTimerCoordinator.timerID(for: exercise.persistentModelID)
+        )
         withAnimation {
             workoutDay.exercises.removeAll { $0.id == exercise.id }
             // Re-pack order indices so they stay contiguous.
@@ -935,6 +955,9 @@ struct ExerciseEditorCard: View {
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
     let onDelete: () -> Void
+    let onNameFocus: () -> Void
+
+    @FocusState private var nameFieldFocused: Bool
 
     var body: some View {
         VStack(spacing: Theme.Spacing.m) {
@@ -944,6 +967,27 @@ struct ExerciseEditorCard: View {
                 TextField("动作名称", text: $exercise.name)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.Color.textPrimary)
+                    .focused($nameFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit { nameFieldFocused = false }
+                    .onChange(of: nameFieldFocused) { _, isFocused in
+                        if isFocused {
+                            onNameFocus()
+                        }
+                    }
+                    .padding(.horizontal, Theme.Spacing.s)
+                    .padding(.vertical, Theme.Spacing.s)
+                    .background(
+                        nameFieldFocused ? Theme.Color.accentSoft : Color.clear,
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                            .stroke(
+                                nameFieldFocused ? Theme.Color.accent : Color.clear,
+                                lineWidth: 1.5
+                            )
+                    )
 
                 Menu {
                     if canMoveUp { Button { onMoveUp() } label: { Label("上移", systemImage: "arrow.up") } }

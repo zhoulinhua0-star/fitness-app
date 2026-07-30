@@ -50,6 +50,7 @@ struct ProfileEditorView: View {
                             .textInputAutocapitalization(.words)
                             .submitLabel(.next)
                             .onSubmit { focusedField = .bio }
+                            .themedField(isFocused: focusedField == .displayName)
                     }
 
                     profileField(
@@ -65,6 +66,8 @@ struct ProfileEditorView: View {
                         .focused($focusedField, equals: .bio)
                         .lineLimit(2...3)
                         .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
+                        .themedField(isFocused: focusedField == .bio)
                     }
                 } header: {
                     Text("个人信息")
@@ -72,6 +75,7 @@ struct ProfileEditorView: View {
                     Text("昵称、个性签名和头像仅保存在你的设备上，不会上传。")
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .blur(radius: isAvatarMenuPresented ? 1.5 : 0)
             .allowsHitTesting(!isAvatarMenuPresented)
 
@@ -91,6 +95,7 @@ struct ProfileEditorView: View {
         }
         .navigationTitle("编辑个人资料")
         .navigationBarTitleDisplayMode(.inline)
+        .appKeyboardToolbar()
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("完成") {

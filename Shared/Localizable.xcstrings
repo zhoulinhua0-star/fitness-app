@@ -88,6 +88,17 @@
         }
       }
     },
+    "%@ · 已完成 %@，可以继续或返回 RepDay 保存。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ complete. Keep going or return to RepDay to save."
+          }
+        }
+      }
+    },
     "%@ · 训练中" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1454,6 +1465,7 @@
       }
     },
     "休息提醒" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2143,6 +2155,17 @@
         }
       }
     },
+    "可选择 1 至 180 分钟" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose from 1 to 180 minutes"
+          }
+        }
+      }
+    },
     "同步中..." : {
       "localizations" : {
         "en" : {
@@ -2749,6 +2772,17 @@
         }
       }
     },
+    "常用时长" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Common Durations"
+          }
+        }
+      }
+    },
     "平板支撑" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2866,6 +2900,16 @@
         }
       }
     },
+    "当天完成后不再提醒" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don’t remind me after today’s workout is complete"
+          }
+        }
+      }
+    },
     "当天类型" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2873,16 +2917,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Day Type"
-          }
-        }
-      }
-    },
-    "当天完成后不再提醒" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Don’t remind me after today’s workout is complete"
           }
         }
       }
@@ -2915,6 +2949,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TBD"
+          }
+        }
+      }
+    },
+    "快速调整目标时长" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quickly Adjust Target Duration"
           }
         }
       }
@@ -3473,12 +3518,34 @@
         }
       }
     },
+    "有氧目标已达到" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio Goal Reached"
+          }
+        }
+      }
+    },
     "有氧目标已达到，可以继续训练" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cardio goal reached. You can keep going."
+          }
+        }
+      }
+    },
+    "有氧目标提醒" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cardio Goal Alerts"
           }
         }
       }
@@ -4125,6 +4192,17 @@
         }
       }
     },
+    "精确时长" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exact Duration"
+          }
+        }
+      }
+    },
     "系统提醒创建失败" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4528,7 +4606,19 @@
         }
       }
     },
+    "要接收休息结束、有氧目标和训练提醒，请在系统设置中允许 RepDay 发送通知。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To receive rest, cardio goal, and workout alerts, allow RepDay notifications in Settings."
+          }
+        }
+      }
+    },
     "要接收休息结束和训练提醒，请在系统设置中允许 RepDay 发送通知。" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4587,6 +4677,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timing"
+          }
+        }
+      }
+    },
+    "计时提醒" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timer Alerts"
           }
         }
       }
@@ -4927,6 +5028,17 @@
         }
       }
     },
+    "轻点选择任意分钟" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to choose any number of minutes"
+          }
+        }
+      }
+    },
     "输入动作名称" : {
       "localizations" : {
         "en" : {
@@ -5058,6 +5170,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose what you want to train today"
+          }
+        }
+      }
+    },
+    "选择目标时长" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Target Duration"
           }
         }
       }

@@ -46,6 +46,7 @@ struct ExercisePickerSheet: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Theme.Color.background)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("动作库")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "搜索动作")
@@ -181,32 +182,236 @@ struct DurationSettingControl: View {
     let title: String
     @Binding var seconds: Int
     @Environment(\.locale) private var locale
+    @State private var showingDurationPicker = false
+    @State private var draftMinutes = 20
 
-    private var minutesBinding: Binding<Int> {
+    private let minuteRange = 1...180
+
+    private var currentMinutes: Int {
+        min(max(seconds / 60, minuteRange.lowerBound), minuteRange.upperBound)
+    }
+
+    private var stepValues: [Int] {
+        var values = [minuteRange.lowerBound]
+        values.append(contentsOf: stride(from: 5, through: minuteRange.upperBound, by: 5))
+        if !values.contains(currentMinutes) {
+            values.append(currentMinutes)
+            values.sort()
+        }
+        return values
+    }
+
+    private var stepIndexBinding: Binding<Int> {
         Binding(
-            get: { max(1, seconds / 60) },
-            set: { seconds = max(1, $0) * 60 }
+            get: { stepValues.firstIndex(of: currentMinutes) ?? 0 },
+            set: { newIndex in
+                let values = stepValues
+                guard values.indices.contains(newIndex) else { return }
+                seconds = values[newIndex] * 60
+            }
         )
     }
 
     var body: some View {
-        Stepper(value: minutesBinding, in: 1...180, step: 5) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(
-                    AppLocalization.string(
-                        title,
-                        languageIdentifier: locale.identifier
+        HStack(spacing: Theme.Spacing.m) {
+            Button {
+                draftMinutes = currentMinutes
+                showingDurationPicker = true
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(
+                        AppLocalization.string(
+                            title,
+                            languageIdentifier: locale.identifier
+                        )
                     )
-                )
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(Theme.Color.textSecondary)
-                Text(ExerciseFormatting.shortDuration(seconds))
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(Theme.Color.accent)
-                    .monospacedDigit()
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Theme.Color.textSecondary)
+
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Text(ExerciseFormatting.shortDuration(seconds))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Theme.Color.accent)
+                            .monospacedDigit()
+
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Theme.Color.textSecondary)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                AppLocalization.string(
+                    title,
+                    languageIdentifier: locale.identifier
+                )
+            )
+            .accessibilityValue(ExerciseFormatting.shortDuration(seconds))
+            .accessibilityHint(
+                AppLocalization.string(
+                    "轻点选择任意分钟",
+                    languageIdentifier: locale.identifier
+                )
+            )
+
+            Stepper(
+                value: stepIndexBinding,
+                in: 0...(stepValues.count - 1)
+            ) {
+                EmptyView()
+            }
+            .labelsHidden()
+            .accessibilityLabel(
+                AppLocalization.string(
+                    "快速调整目标时长",
+                    languageIdentifier: locale.identifier
+                )
+            )
+            .accessibilityValue(ExerciseFormatting.shortDuration(seconds))
         }
         .frame(minHeight: 44)
-        .accessibilityValue(ExerciseFormatting.shortDuration(seconds))
+        .sheet(isPresented: $showingDurationPicker) {
+            DurationSelectionSheet(
+                selectedMinutes: $draftMinutes,
+                minuteRange: minuteRange
+            ) {
+                seconds = draftMinutes * 60
+            }
+        }
+    }
+}
+
+private struct DurationSelectionSheet: View {
+    @Binding var selectedMinutes: Int
+    let minuteRange: ClosedRange<Int>
+    let onConfirm: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
+
+    private let presets = [10, 20, 30, 45, 60]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 64), spacing: Theme.Spacing.s)],
+                        spacing: Theme.Spacing.s
+                    ) {
+                        ForEach(presets, id: \.self) { minutes in
+                            Button {
+                                selectedMinutes = minutes
+                            } label: {
+                                Text(localizedMinutes(minutes))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(
+                                        selectedMinutes == minutes
+                                            ? Color.white
+                                            : Theme.Color.textPrimary
+                                    )
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .background(
+                                        selectedMinutes == minutes
+                                            ? Theme.Color.accent
+                                            : Theme.Color.surfaceMuted,
+                                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(
+                                selectedMinutes == minutes ? .isSelected : []
+                            )
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xs)
+                } header: {
+                    Text(
+                        AppLocalization.string(
+                            "常用时长",
+                            languageIdentifier: locale.identifier
+                        )
+                    )
+                }
+
+                Section {
+                    Picker(
+                        AppLocalization.string(
+                            "精确时长",
+                            languageIdentifier: locale.identifier
+                        ),
+                        selection: $selectedMinutes
+                    ) {
+                        ForEach(minuteRange, id: \.self) { minutes in
+                            Text(localizedMinutes(minutes))
+                                .tag(minutes)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                } header: {
+                    Text(
+                        AppLocalization.string(
+                            "精确时长",
+                            languageIdentifier: locale.identifier
+                        )
+                    )
+                } footer: {
+                    Text(
+                        AppLocalization.string(
+                            "可选择 1 至 180 分钟",
+                            languageIdentifier: locale.identifier
+                        )
+                    )
+                }
+            }
+            .navigationTitle(
+                AppLocalization.string(
+                    "选择目标时长",
+                    languageIdentifier: locale.identifier
+                )
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(
+                        AppLocalization.string(
+                            "取消",
+                            languageIdentifier: locale.identifier
+                        )
+                    ) {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(
+                        AppLocalization.string(
+                            "完成",
+                            languageIdentifier: locale.identifier
+                        )
+                    ) {
+                        onConfirm()
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func localizedMinutes(_ minutes: Int) -> String {
+        AppLocalization.format(
+            "%lld 分钟",
+            languageIdentifier: locale.identifier,
+            Int64(minutes)
+        )
     }
 }
