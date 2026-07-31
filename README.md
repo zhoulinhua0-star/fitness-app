@@ -40,9 +40,9 @@
 
 ---
 
-## APP Updates  ｜  更新日志
+## App Updates  ｜  更新日志
 
-### Jul 30, 2026 - App First Update(v1.0.1)
+### Jul 30, 2026 - App First Update(v1.1.0)
 
 This is RepDay's first major development update since the initial App Store release. It expands the app from a focused set-and-rep planner into a more complete strength-and-cardio training companion, while keeping workout data private and stored locally.
 
